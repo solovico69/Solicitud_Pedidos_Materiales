@@ -60,8 +60,14 @@ const StorageService = {
     this.set(STORAGE_KEYS.SPREADSHEET_ID, (id || '').trim());
   },
 
+  DEFAULT_WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzRZBXQP_jMxHE61DNv1kxtsVuLebB22Vr9mzrNv23Hj8-u8S6uea-2snoxgwAWdcMGjA/exec',
+
   getWebAppUrl() {
-    return this.get(STORAGE_KEYS.SPREADSHEET_URL, '');
+    const val = this.get(STORAGE_KEYS.SPREADSHEET_URL, null);
+    if (!val || !val.includes('AKfycbzRZBXQP_jMxHE61DNv1kxtsVuLebB22Vr9mzrNv23Hj8-u8S6uea-2snoxgwAWdcMGjA')) {
+      return this.DEFAULT_WEB_APP_URL;
+    }
+    return val;
   },
 
   setWebAppUrl(url) {
