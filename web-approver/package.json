@@ -1,0 +1,19 @@
+{
+  "name": "aprobacion-pedidos-materiales",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Módulo de Aprobación y Supervisión de Pedidos de Materiales de Obra",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve . -l 3001",
+    "build": "echo 'No build needed - static site'",
+    "start": "npx serve . -l 3001",
+    "preview": "npx serve . -l 3001"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

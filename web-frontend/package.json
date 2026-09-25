@@ -1,0 +1,29 @@
+{
+  "name": "Control Solicitud de Pedidos Materiales",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de gestión de solicitudes de materiales de construcción con Google Sheets",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve . -l 3000",
+    "build": "echo 'No build needed - static site'",
+    "start": "npx serve . -l 3000",
+    "preview": "npx serve . -l 3000"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  },
+  "deploy": {
+    "framework": null,
+    "buildCommand": null,
+    "devCommand": "npx serve . -l 3000",
+    "installCommand": null,
+    "regions": ["iad1"],
+    "routes": [
+      { "src": "/.*", "dest": "/index.html" }
+    ]
+  }
+}

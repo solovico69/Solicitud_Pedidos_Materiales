@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<!--
+ * PROYECTO: Control Solicitud de Pedidos Materiales
+ * DESARROLLO & ARQUITECTURA: Victor Solorzano
+ * ASISTENCIA TÉCNICA: OpenCode for Obsidian & Antigravity IDE
+ * ROL: Interfaz de Usuario para Módulo de Aprobación de Pedidos
+-->
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0F172A">
+  <meta name="description" content="Módulo de Supervisión y Aprobación de Solicitudes de Materiales en Obra">
+  <link rel="manifest" href="./manifest.json">
+  <title>Aprobación de Pedidos • Control de Materiales</title>
+
+  <!-- Google Fonts: Inter & Material Symbols -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .fade-in { animation: fadeIn 0.25s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#0B1120] text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200">
+
+  <!-- INSTALL BANNER (PWA) -->
+  <div id="installBanner" class="hidden fixed top-0 left-0 right-0 z-50 bg-sky-700 text-white p-3 px-4 flex items-center justify-between gap-3 shadow-lg fade-in">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-amber-300">download_for_offline</span>
+      <span class="text-xs sm:text-sm font-medium">Instalar app de Aprobaciones para acceso directo en tu móvil</span>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="installPWA()" class="px-3 py-1 bg-white text-sky-900 rounded-lg text-xs font-bold shadow-sm">Instalar</button>
+      <button onclick="dismissInstall()" class="px-2 py-1 bg-white/20 text-white rounded-lg text-xs">Después</button>
+    </div>
+  </div>
+
+  <!-- HEADER SUPERIOR -->
+  <header class="bg-white dark:bg-[#0F172A] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-30 pt-safe transition-colors">
+    <div class="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-sky-600 dark:bg-sky-500 text-white flex items-center justify-center shadow-md shadow-sky-600/20">
+          <span class="material-symbols-outlined text-[24px]">verified_user</span>
+        </div>
+        <div>
+          <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">Panel de Aprobación • Obra</span>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">Supervisión de Pedidos</h1>
+        </div>
+      </div>
+
+      <!-- Controles de cabecera -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <button onclick="refreshData()" title="Refrescar solicitudes" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors">
+          <span class="material-symbols-outlined text-[20px]" id="refreshIcon">refresh</span>
+        </button>
+        <button onclick="toggleTheme()" title="Alternar Modo Oscuro" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-amber-500 dark:text-amber-400 transition-colors">
+          <span class="material-symbols-outlined text-[20px]" id="themeIcon">dark_mode</span>
+        </button>
+        <button onclick="showSetupModal()" title="Configuración de Conexión" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors">
+          <span class="material-symbols-outlined text-[20px]">settings</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra de Estado y Conexión -->
+    <div class="max-w-5xl mx-auto px-4 pb-2.5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" id="connDot"></span>
+        </span>
+        <span id="connLabel" class="font-medium text-emerald-600 dark:text-emerald-400">Conectado con Sheets</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="pendingBadge" class="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 font-semibold text-[11px]">0 pendientes</span>
+        <span id="totalBadge" class="hidden sm:inline font-mono">0 solicitudes</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- FILTROS Y BÚSQUEDA -->
+  <section class="max-w-5xl mx-auto px-4 pt-4 w-full">
+    <div class="bg-white dark:bg-[#0F172A] rounded-2xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+      <div class="flex flex-col sm:flex-row gap-2.5">
+        <!-- Búsqueda por Folio o Solicitante -->
+        <div class="relative flex-1">
+          <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+          <input type="text" id="searchInput" placeholder="Buscar por Folio (ej: S-00001) o Responsable..." oninput="applyFilters()" class="w-full h-10 pl-9 pr-3 rounded-xl bg-slate-50 dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <!-- Filtro por Obra -->
+        <div class="relative sm:w-56">
+          <select id="obraFilter" onchange="applyFilters()" class="w-full h-10 pl-3 pr-8 rounded-xl bg-slate-50 dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 appearance-none cursor-pointer">
+            <option value="">Todas las Obras</option>
+          </select>
+          <span class="material-symbols-outlined text-slate-400 absolute right-2.5 top-2.5 text-[18px] pointer-events-none">expand_more</span>
+        </div>
+      </div>
+
+      <!-- Pestañas de Estado (Segmented Control con Alto Contraste) -->
+      <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-[#1E293B] overflow-x-auto shadow-inner">
+        <button type="button" onclick="setStatusTab('pendiente')" id="tab-pendiente" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-center transition-all whitespace-nowrap">
+          ⏳ Pendientes
+        </button>
+        <button type="button" onclick="setStatusTab('todos')" id="tab-todos" class="flex-1 py-2 px-3 rounded-xl text-xs font-medium text-center transition-all whitespace-nowrap">
+          📋 Todos
+        </button>
+        <button type="button" onclick="setStatusTab('aprobado')" id="tab-aprobado" class="flex-1 py-2 px-3 rounded-xl text-xs font-medium text-center transition-all whitespace-nowrap">
+          ✅ Aprobados
+        </button>
+        <button type="button" onclick="setStatusTab('rechazado')" id="tab-rechazado" class="flex-1 py-2 px-3 rounded-xl text-xs font-medium text-center transition-all whitespace-nowrap">
+          ❌ Rechazados
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENEDOR DE TARJETAS DE SOLICITUD (AGRUPADAS POR FOLIO) -->
+  <main class="max-w-5xl mx-auto px-4 py-4 w-full flex-1 space-y-4 pb-28" id="ordersContainer">
+    <!-- Estado de carga inicial -->
+    <div id="loadingState" class="py-16 text-center space-y-3">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-600 border-t-transparent"></div>
+      <p class="text-sm text-slate-500 dark:text-slate-400">Cargando solicitudes desde Google Sheets...</p>
+    </div>
+  </main>
+
+  <!-- BARRA DE ACCIÓN FLOTANTE AL PIE (CUANDO HAY CAMBIOS POR GUARDAR) -->
+  <div id="saveBar" class="hidden fixed bottom-4 left-4 right-4 max-w-xl mx-auto z-40 bg-white dark:bg-[#1E293B] rounded-2xl p-3.5 shadow-2xl border border-sky-500/40 dark:border-sky-500/30 flex items-center justify-between gap-3 fade-in">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-400 flex items-center justify-center font-bold text-xs font-mono" id="changesCounter">
+        0
+      </div>
+      <div>
+        <p class="text-xs font-bold text-slate-900 dark:text-white" id="changesTitle">Cambios pendientes</p>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400">Listos para sincronizar en Sheets</p>
+      </div>
+    </div>
+    <button onclick="saveAllApprovals()" id="btnSaveApprovals" type="button" class="py-2.5 px-5 bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2 shrink-0">
+      <span class="material-symbols-outlined text-[18px]" id="btnSaveIcon">cloud_upload</span>
+      <span id="btnSaveLabel">Guardar en Sheets</span>
+    </button>
+  </div>
+
+  <!-- TOAST DE NOTIFICACIONES -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-medium text-xs sm:text-sm shadow-2xl border border-white/10 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2">
+    <span id="toastMessage"></span>
+  </div>
+
+  <!-- MODAL DE CONFIGURACIÓN -->
+  <div id="setupModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-200">
+    <div class="w-full max-w-md bg-white dark:bg-[#1E293B] rounded-2xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-sky-600 dark:text-sky-400">tune</span>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Configuración del Backend</h3>
+        </div>
+        <button onclick="closeSetupModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs sm:text-sm">
+        <div>
+          <label class="font-semibold text-slate-700 dark:text-slate-300">Spreadsheet ID</label>
+          <input type="text" id="setupSheetId" class="w-full h-10 px-3 mt-1 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+        <div>
+          <label class="font-semibold text-slate-700 dark:text-slate-300">URL del Web App GAS (termina en /exec)</label>
+          <input type="text" id="setupWebAppUrl" class="w-full h-10 px-3 mt-1 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeSetupModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs">Cancelar</button>
+        <button onclick="saveSetup()" class="flex-1 py-2.5 rounded-xl bg-sky-600 dark:bg-sky-500 text-white font-bold text-xs shadow-md">Guardar y Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="./js/modules/storage.js"></script>
+  <script src="./js/modules/sheets-api.js"></script>
+  <script src="./js/app.js"></script>
+
+  <!-- REGISTRO DEL SERVICE WORKER PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          console.log('✅ Service Worker Aprobaciones activo:', reg.scope);
+        }).catch(err => {
+          console.warn('Registro SW falló:', err);
+        });
+      });
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const banner = document.getElementById('installBanner');
+      if (banner) banner.classList.remove('hidden');
+    });
+
+    window.installPWA = async function() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        dismissInstall();
+      }
+    };
+
+    window.dismissInstall = function() {
+      const banner = document.getElementById('installBanner');
+      if (banner) banner.classList.add('hidden');
+    };
+  </script>
+</body>
+</html>

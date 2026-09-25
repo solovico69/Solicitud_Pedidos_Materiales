@@ -1,0 +1,435 @@
+<!--
+ * PROYECTO: Control Solicitud de Pedidos Materiales
+ * DESARROLLO & ARQUITECTURA: Victor Solorzano
+ * ASISTENCIA TÉCNICA: Google AI Studio & Antigravity IDE
+ * ROL: Interfaz de Usuario Principal (PWA Mobile & Desktop)
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0F2942">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="Control de Solicitud de Pedidos de Materiales - Sistema de Gestión Industrial con Sincronización Google Sheets">
+  <meta name="apple-mobile-web-app-title" content="Control Materiales">
+  
+  <title>Industrial Precision • Solicitud de Materiales</title>
+  
+  <!-- PWA Manifest & Favicon -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: '#0F2942',
+            'primary-dark': '#001428',
+            secondary: '#F59E0B',
+            'secondary-container': '#fea619',
+            tertiary: '#059669',
+            'tertiary-container': '#002e1d',
+            error: '#ba1a1a',
+            surface: '#f8f9ff',
+            'surface-container-lowest': '#ffffff',
+            'surface-container-low': '#eff4ff',
+            'surface-container': '#e6eeff',
+            'on-surface': '#0d1c2f',
+            'on-surface-variant': '#43474d',
+            outline: '#74777e'
+          },
+          fontFamily: {
+            'headline': ['"Plus Jakarta Sans"', 'sans-serif'],
+            'body': ['"Inter"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom Industrial CSS -->
+  <link rel="stylesheet" href="./css/styles.css">
+  
+  <style>
+    @layer base {
+      html, body { width: 100vw; margin: 0; padding: 0; }
+      body { overscroll-behavior: none; font-family: 'Inter', sans-serif; }
+    }
+    .font-headline-lg { font-family: 'Plus Jakarta Sans'; font-size: 24px; font-weight: 700; line-height: 32px; }
+    .font-headline-md { font-family: 'Plus Jakarta Sans'; font-size: 18px; font-weight: 700; line-height: 26px; }
+    .font-body-md { font-family: 'Inter'; font-size: 14px; font-weight: 400; line-height: 20px; }
+    .font-body-sm { font-family: 'Inter'; font-size: 12px; font-weight: 400; line-height: 16px; }
+    .font-label-lg { font-family: 'Inter'; font-size: 14px; font-weight: 600; line-height: 20px; }
+    .font-label-md { font-family: 'Inter'; font-size: 12px; font-weight: 600; line-height: 16px; }
+    .font-label-sm { font-family: 'Inter'; font-size: 11px; font-weight: 600; line-height: 14px; }
+    .dark body { background: #0F172A; color: #E2E8F0; }
+  </style>
+</head>
+<body class="bg-surface min-h-screen text-on-surface dark:text-slate-100 transition-colors duration-200">
+
+  <!-- INSTALL BANNER (PWA) -->
+  <div id="installBanner" class="hidden fixed top-0 left-0 right-0 z-50 bg-primary text-white p-3 px-4 flex items-center justify-between gap-3 shadow-lg fade-in">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-secondary">download_for_offline</span>
+      <span class="font-label-sm">Instalar aplicación para acceso directo y uso offline</span>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="installPWA()" class="px-3 py-1.5 bg-secondary text-slate-950 rounded-lg font-label-sm font-bold shadow-sm">Instalar</button>
+      <button onclick="dismissInstall()" class="px-3 py-1.5 bg-white/10 text-white rounded-lg font-label-sm">Después</button>
+    </div>
+  </div>
+
+  <!-- TOP CONTEXT BANNER -->
+  <header class="p-4 max-w-4xl mx-auto pt-safe">
+    <div class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-800 flex flex-col gap-3 relative overflow-hidden">
+      <div class="absolute -right-8 -top-8 w-32 h-32 bg-primary/5 dark:bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+      
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex flex-col">
+          <span class="font-label-sm uppercase tracking-widest text-on-surface-variant dark:text-slate-400 font-bold">Gestión de Obra • Requisición</span>
+          <h1 class="font-headline-lg text-primary dark:text-white tracking-tight">Control Solicitud de Pedidos Materiales</h1>
+        </div>
+        
+        <!-- Botones de Acción Superior (Tema y Ajustes) -->
+        <div class="flex items-center gap-1.5">
+          <button id="themeToggleBtn" type="button" title="Alternar Modo Oscuro / Claro" class="w-9 h-9 rounded-xl bg-surface-container-low dark:bg-slate-800 text-primary dark:text-amber-400 flex items-center justify-center hover:bg-surface-container dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700">
+            <span class="material-symbols-outlined text-[20px]">dark_mode</span>
+          </button>
+          <button onclick="showSetupModal()" type="button" title="Configurar Google Sheets" class="w-9 h-9 rounded-xl bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 flex items-center justify-center hover:bg-surface-container dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700">
+            <span class="material-symbols-outlined text-[20px]">settings</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Indicadores de Sincronización y Caché -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-surface-container-low dark:bg-slate-800/90">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+          </span>
+          <span class="font-label-sm font-semibold text-emerald-700 dark:text-emerald-400" id="syncStatus">Google Sheets: Conectado</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-on-surface-variant dark:text-slate-400">
+          <span class="material-symbols-outlined text-[16px] text-emerald-600 dark:text-emerald-400">sync</span>
+          <span class="font-label-sm" id="syncLabel">Sincronización bidireccional activa</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-on-surface-variant dark:text-slate-400">
+          <span class="material-symbols-outlined text-[16px]">schedule</span>
+          <span class="font-label-sm font-mono" id="currentTimestamp">--:--</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CACHE STATUS INDICATOR -->
+  <div class="max-w-4xl mx-auto px-4">
+    <div id="cacheStatus" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low dark:bg-slate-800/60 text-on-surface-variant dark:text-slate-300 font-label-sm">
+      <span class="material-symbols-outlined text-[15px] text-primary dark:text-amber-400">database</span>
+      <span id="cacheLabel">Iniciando aplicación...</span>
+    </div>
+  </div>
+
+  <!-- FORM WRAPPER -->
+  <main class="p-4 max-w-4xl mx-auto space-y-4 pb-28" id="mainContent">
+    
+    <!-- BLOQUE 1: DATOS DE IDENTIFICACIÓN -->
+    <section class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-4 fade-in" aria-label="Datos de Identificación">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-primary dark:bg-slate-700 text-white dark:text-amber-400 flex items-center justify-center shadow-sm">
+            <span class="material-symbols-outlined text-[20px]">badge</span>
+          </div>
+          <h2 class="font-headline-md text-primary dark:text-white">1. Datos de Identificación</h2>
+        </div>
+      </div>
+      
+      <!-- Campo: Fecha de Registro -->
+      <div class="space-y-1.5">
+        <label class="flex items-center gap-1 font-label-md text-on-surface dark:text-slate-200" for="fechaRegistro">
+          <span class="material-symbols-outlined text-[18px] text-primary dark:text-amber-400">calendar_today</span>
+          Fecha de Registro *
+        </label>
+        <input class="w-full h-11 px-3.5 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 transition-all" id="fechaRegistro" required type="date">
+      </div>
+      
+      <!-- Campo: Responsable -->
+      <div class="space-y-1.5">
+        <label class="flex items-center gap-1 font-label-md text-on-surface dark:text-slate-200" for="profesionalInput">
+          <span class="material-symbols-outlined text-[18px] text-primary dark:text-amber-400">engineering</span>
+          Responsable de Solicitud (Arquitecto / Ingeniero) *
+        </label>
+        <div class="relative">
+          <input class="w-full h-11 pl-3.5 pr-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 transition-all placeholder:text-outline dark:placeholder:text-slate-500" id="profesionalInput" list="profesionalesList" placeholder="Escriba o seleccione profesional..." required autocomplete="off">
+          <datalist id="profesionalesList"></datalist>
+          <span class="material-symbols-outlined text-outline dark:text-slate-400 absolute right-3 top-2.5 text-[20px] pointer-events-none">expand_more</span>
+        </div>
+        <button type="button" onclick="showAddEngineerForm()" class="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-label-sm font-semibold hover:underline pt-0.5">
+          <span class="material-symbols-outlined text-[16px]">person_add</span> Agregar nuevo profesional
+        </button>
+      </div>
+      
+      <!-- Campo: Obra -->
+      <div class="space-y-1.5">
+        <label class="flex items-center gap-1 font-label-md text-on-surface dark:text-slate-200" for="obraSelect">
+          <span class="material-symbols-outlined text-[18px] text-primary dark:text-amber-400">domain</span>
+          Proyecto / Obra Destino *
+        </label>
+        <div class="relative">
+          <select class="w-full h-11 pl-3.5 pr-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 transition-all appearance-none cursor-pointer" id="obraSelect" required onchange="onCatalogSelectChanged('obraSelect', 'newObraWrap', 'newObraInput')">
+            <option disabled selected value="">Seleccione la obra activa...</option>
+            <option value="__new_obra__">➕ Nueva obra…</option>
+          </select>
+          <span class="material-symbols-outlined text-outline dark:text-slate-400 absolute right-3 top-2.5 text-[20px] pointer-events-none">expand_more</span>
+        </div>
+        <!-- Agregar Nueva Obra (inline) -->
+        <div id="newObraWrap" class="hidden space-y-2 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-emerald-600/40 p-3">
+          <label class="font-label-sm text-on-surface-variant dark:text-slate-300">Nombra la nueva obra / proyecto</label>
+          <div class="flex gap-2">
+            <input type="text" id="newObraInput" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-slate-800 text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:ring-2 focus:ring-emerald-600 focus:outline-none" placeholder="Ej: Urbanización Los Pinos">
+            <button type="button" onclick="saveNewObra()" class="px-4 h-10 rounded-lg bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 text-white font-label-sm font-bold shrink-0 shadow-sm">Guardar</button>
+            <button type="button" onclick="cancelNewObra()" class="px-3 h-10 rounded-lg bg-surface-container dark:bg-slate-800 text-on-surface dark:text-slate-300 font-label-sm shrink-0">Cancelar</button>
+          </div>
+        </div>
+        <button type="button" onclick="openNewField('newObraWrap', 'newObraInput')" class="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-label-sm font-semibold hover:underline pt-0.5">
+          <span class="material-symbols-outlined text-[16px]">home_add</span> Agregar nueva obra
+        </button>
+      </div>
+    </section>
+
+    <!-- BLOQUE 2: LÍNEAS DE MATERIALES -->
+    <section class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-4 fade-in" aria-label="Materiales a Solicitar">
+      <div class="space-y-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-primary dark:bg-slate-700 text-white dark:text-amber-400 flex items-center justify-center shadow-sm">
+              <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+            </div>
+            <h2 class="font-headline-md text-primary dark:text-white">2. Líneas de Materiales</h2>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-on-surface-variant dark:text-slate-400 font-label-sm">
+          <span id="availableLinesText">28 disponibles en esta solicitud</span>
+          <span class="font-mono text-primary dark:text-amber-400 font-semibold" id="capacityPercent">7%</span>
+        </div>
+        <div class="w-full bg-slate-200 dark:bg-slate-700/60 h-2 rounded-full overflow-hidden">
+          <div class="bg-primary dark:bg-amber-500 h-full transition-all duration-300" id="progressBar" style="width: 7%;"></div>
+        </div>
+      </div>
+      
+      <!-- CONTENEDOR DE LÍNEAS -->
+      <div class="space-y-3" id="materialRowsContainer"></div>
+      
+      <!-- BOTÓN AGREGAR LÍNEA -->
+      <button class="w-full py-3.5 px-4 rounded-xl bg-surface-container dark:bg-slate-800 hover:bg-surface-container-high dark:hover:bg-slate-700 text-primary dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-label-lg font-semibold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.99]" id="btnAddRow" onclick="addMaterialRow()" type="button">
+        <span class="material-symbols-outlined text-[20px] text-primary dark:text-amber-400">add_circle</span>
+        <span>Agregar otra línea de material</span>
+      </button>
+      <p class="hidden text-center font-label-sm text-error dark:text-rose-400 font-medium" id="limitAlert">Límite alcanzado de 30 líneas por pedido.</p>
+    </section>
+
+    <!-- RESUMEN FLOTANTE AL PIE & GUARDADO -->
+    <section class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 shadow-lg border border-slate-200/90 dark:border-slate-700 space-y-3 sticky bottom-4 z-40 fade-in" aria-label="Resumen y Guardado">
+      <div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-slate-200/60 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary dark:text-amber-400 text-[20px]">fact_check</span>
+          <span class="font-body-sm text-on-surface dark:text-slate-300">Resumen:</span>
+          <div class="bg-primary/10 dark:bg-slate-800 text-primary dark:text-amber-400 px-2.5 py-0.5 rounded-full font-label-sm font-bold ml-1">
+            <span id="usedLinesCount">2</span> de 30 líneas
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="font-label-sm text-on-surface-variant dark:text-slate-400"><strong class="text-primary dark:text-slate-100 font-bold" id="summaryRowCount">2</strong> líneas activas</span>
+          <span class="font-label-sm text-on-surface-variant dark:text-slate-400 font-mono text-[11px]" id="currentTimestampFooter">--:--</span>
+        </div>
+      </div>
+      
+      <!-- BOTÓN PRINCIPAL DE GUARDADO -->
+      <button class="relative w-full py-4 px-6 rounded-xl bg-primary dark:bg-amber-500 text-white dark:text-slate-950 font-headline-md font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 overflow-hidden group active:scale-[0.99] cursor-pointer" id="btnSubmitSync" onclick="handleSubmit()" type="button">
+        <span class="material-symbols-outlined text-[24px]" id="btnIcon">cloud_upload</span>
+        <span class="hidden animate-spin h-5 w-5 border-2 border-white dark:border-slate-950 border-t-transparent rounded-full" id="btnSpinner"></span>
+        <span id="btnLabel">Guardar Solicitud y Sincronizar en Sheets</span>
+      </button>
+    </section>
+  </main>
+
+  <!-- MODAL DE ÉXITO -->
+  <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300" id="successModal">
+    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center text-center space-y-4 transform translate-y-8 transition-all duration-300 relative overflow-hidden" id="modalContent">
+      <div class="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+        <span class="material-symbols-outlined text-[36px]">check_circle</span>
+      </div>
+      <div class="space-y-1">
+        <span class="px-2.5 py-0.5 rounded-full bg-surface-container dark:bg-slate-800 text-primary dark:text-amber-400 font-label-sm font-semibold uppercase tracking-wider">Transacción Registrada</span>
+        <h3 class="font-headline-md text-primary dark:text-white font-bold">¡Registro Exitoso!</h3>
+        <p class="font-body-md text-on-surface-variant dark:text-slate-400">Solicitud procesada y vinculada en Google Sheets.</p>
+      </div>
+      <div class="w-full bg-surface-container-low dark:bg-[#0f172a] p-3.5 rounded-xl text-left space-y-1.5 font-label-sm border border-slate-200/80 dark:border-slate-800">
+        <div class="flex justify-between text-on-surface-variant dark:text-slate-400">
+          <span>Folio de Control:</span>
+          <span class="font-mono font-bold text-primary dark:text-amber-400" id="modalFolio">REQ-0000</span>
+        </div>
+        <div class="flex justify-between text-on-surface-variant dark:text-slate-400">
+          <span>Líneas:</span>
+          <span class="font-semibold text-primary dark:text-slate-200" id="modalItems">0 líneas</span>
+        </div>
+        <div class="flex justify-between text-on-surface-variant dark:text-slate-400">
+          <span>Modo:</span>
+          <span class="font-semibold text-primary dark:text-slate-200" id="modalMode">--</span>
+        </div>
+      </div>
+      <div class="w-full flex flex-col sm:flex-row gap-2.5 pt-2">
+        <button class="flex-1 py-3 px-4 rounded-xl bg-surface-container dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-on-surface dark:text-slate-200 font-label-md font-semibold flex items-center justify-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700" onclick="downloadPDF()" type="button">
+          <span class="material-symbols-outlined text-[18px]">receipt_long</span>
+          <span>Descargar Comprobante</span>
+        </button>
+        <button class="flex-1 py-3 px-4 rounded-xl bg-primary dark:bg-amber-500 text-white dark:text-slate-950 font-label-md font-bold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95" onclick="resetFormForNew()" type="button">
+          <span class="material-symbols-outlined text-[18px]">add_circle</span>
+          <span>Nueva Solicitud</span>
+        </button>
+      </div>
+      <button class="text-outline dark:text-slate-400 font-label-sm hover:text-on-surface dark:hover:text-slate-200 transition-colors pt-1" onclick="closeModal()" type="button">Cerrar ventana</button>
+    </div>
+  </div>
+
+  <!-- MODAL PARA AGREGAR PROFESIONAL -->
+  <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300" id="engineerModal">
+    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 transform translate-y-8 transition-all duration-300" id="engineerModalContent">
+      <h3 class="font-headline-md text-primary dark:text-white font-bold mb-4">Agregar Nuevo Profesional</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="font-label-sm text-on-surface-variant dark:text-slate-300">Nombre completo</label>
+          <input type="text" id="newEngineerName" class="w-full h-11 px-3.5 mt-1 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 focus:outline-none" placeholder="Ej: Ing. Carlos Mendoza">
+        </div>
+        <div>
+          <label class="font-label-sm text-on-surface-variant dark:text-slate-300">Asignar a obra (opcional)</label>
+          <select id="newEngineerProject" class="w-full h-11 px-3.5 mt-1 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 focus:outline-none appearance-none cursor-pointer">
+            <option value="">Asignar a obra...</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="closeEngineerModal()" class="flex-1 py-3 px-4 rounded-xl bg-surface-container dark:bg-slate-800 text-on-surface dark:text-slate-200 font-label-md font-semibold">Cancelar</button>
+        <button onclick="saveEngineer()" class="flex-1 py-3 px-4 rounded-xl bg-primary dark:bg-amber-500 text-white dark:text-slate-950 font-label-md font-bold">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIGURACIÓN DE BACKEND GAS -->
+  <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300" id="setupModal" onclick="if(event.target === this) closeSetupModal()">
+    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 transform translate-y-8 transition-all duration-300 space-y-4" id="setupModalContent">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-primary/10 dark:bg-amber-500/10 text-primary dark:text-amber-400 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[22px]">settings</span>
+          </div>
+          <div>
+            <h3 class="font-headline-md text-primary dark:text-white font-bold leading-tight">Configuración Backend GAS</h3>
+            <span class="text-xs text-on-surface-variant dark:text-slate-400">Google Apps Script & Sheets</span>
+          </div>
+        </div>
+        <button onclick="closeSetupModal()" type="button" title="Cerrar ventana" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors">
+          <span class="material-symbols-outlined text-[22px]">close</span>
+        </button>
+      </div>
+
+      <p class="font-body-sm text-on-surface-variant dark:text-slate-400">
+        Ingresa los datos de tu despliegue de Google Apps Script. Se guardarán de forma permanente en este dispositivo.
+      </p>
+
+      <div class="space-y-3 text-left">
+        <div>
+          <label class="font-label-sm text-on-surface-variant dark:text-slate-300">Spreadsheet ID</label>
+          <input type="text" id="setupSheetId" class="w-full h-11 px-3.5 mt-1 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-300 dark:border-slate-700 font-mono text-xs sm:text-sm focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 focus:outline-none" placeholder="1rGqlf5TU02Ji3tveeyOkSzdYDNJvH5TLkqv4xzSqMRQ">
+        </div>
+        <div>
+          <label class="font-label-sm text-on-surface-variant dark:text-slate-300">Web App URL (termina en /exec)</label>
+          <input type="text" id="setupWebAppUrl" class="w-full h-11 px-3.5 mt-1 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-300 dark:border-slate-700 font-mono text-xs sm:text-sm focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 focus:outline-none" placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
+      </div>
+
+      <div class="flex gap-2.5 pt-2">
+        <button onclick="closeSetupModal()" type="button" class="flex-1 py-3 px-4 rounded-xl bg-surface-container dark:bg-slate-800 hover:bg-surface-container-high dark:hover:bg-slate-700 text-on-surface dark:text-slate-200 font-label-md font-semibold transition-colors">
+          Cancelar
+        </button>
+        <button onclick="doSetup()" type="button" id="btnSaveSetup" class="flex-1 py-3 px-4 bg-primary dark:bg-amber-500 hover:opacity-95 text-on-primary dark:text-slate-950 font-label-md font-bold rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5">
+          <span class="material-symbols-outlined text-[18px]">check_circle</span>
+          <span>Guardar y Conectar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICACIÓN TOAST FLOTANTE -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-xl bg-primary dark:bg-slate-800 text-white dark:text-slate-100 font-label-md font-semibold shadow-2xl border border-white/10 dark:border-slate-700 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none" role="alert" aria-live="polite">
+    <span id="toastMessage"></span>
+  </div>
+
+  <!-- SCRIPTS EN ORDEN DE DEPENDENCIAS CON RUTAS CORREGIDAS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="./js/modules/storage.js"></script>
+  <script src="./js/modules/sheets-api.js"></script>
+  <script src="./js/modules/sync.js"></script>
+  <script src="./js/app.js"></script>
+  
+  <!-- REGISTRO DEL SERVICE WORKER PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          console.log('✅ Service Worker PWA activo:', reg.scope);
+        }).catch(err => {
+          console.warn('Registro de Service Worker falló:', err);
+        });
+      });
+    }
+
+    // Instalación PWA (beforeinstallprompt)
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const banner = document.getElementById('installBanner');
+      if (banner) banner.classList.remove('hidden');
+    });
+
+    window.installPWA = async function() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('[PWA] Elección de instalación:', outcome);
+        deferredPrompt = null;
+        dismissInstall();
+      }
+    };
+
+    window.dismissInstall = function() {
+      const banner = document.getElementById('installBanner');
+      if (banner) banner.classList.add('hidden');
+    };
+
+    window.addEventListener('appinstalled', () => {
+      dismissInstall();
+      deferredPrompt = null;
+      if (typeof showToast === 'function') {
+        showToast('🎉 ¡Aplicación instalada exitosamente!');
+      }
+    });
+  </script>
+</body>
+</html>

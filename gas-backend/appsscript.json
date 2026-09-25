@@ -1,0 +1,25 @@
+{
+  "timeZone": "America/Argentina/Buenos_Aires",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "webapp": {
+    "access": "ANYONE",
+    "executeAs": "USER_DEPLOYING",
+    "loginRequired": false
+  },
+  "sheets": {
+    "macros": []
+  },
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.container.ui"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Control de Pedidos de Materiales",
+      "logoUrl": "https://www.gstatic.com/images/branding/product/1x/materials_black_48dp.png"
+    }
+  }
+}
