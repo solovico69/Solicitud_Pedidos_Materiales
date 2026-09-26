@@ -228,12 +228,10 @@ function readSheetData_(sheetName, maxRows = 0) {
 
   for (let i = 0; i < rawValues.length; i++) {
     const row = rawValues[i];
-    const isNotEmpty = row.some(
-      (cell) => cell !== "" && cell !== null && cell !== undefined,
-    );
-    if (!isNotEmpty) continue;
 
     const rowObj = { _rowIndex: dataStartRow + i };
+    let hasActualContent = false;
+
     headers.forEach((header, colIdx) => {
       if (header) {
         let val = row[colIdx];
@@ -241,8 +239,28 @@ function readSheetData_(sheetName, maxRows = 0) {
           val = Utilities.formatDate(val, Session.getScriptTimeZone() || "GMT-4", "dd-MM-yyyy");
         }
         rowObj[header] = val !== undefined && val !== null ? val : "";
+
+        // Validar contenido real ignorando casillas de verificación (false) o correlativos formulados
+        const hUpper = String(header).trim().toUpperCase();
+        if (hUpper !== "N#" && hUpper !== "TIENE_FOTOS" && hUpper !== "TIENE FOTOS") {
+          if (val !== "" && val !== null && val !== undefined) {
+            hasActualContent = true;
+          }
+        }
       }
     });
+
+    // En Solicitudes, una fila requiere obligatoriamente tener MATERIAL o SOLICITANTE registrado
+    if (sheetName === SHEET_NAMES.SOLICITUDES) {
+      const mat = String(rowObj["MATERIAL"] || "").trim();
+      const sol = String(rowObj["SOLICITANTE"] || "").trim();
+      if (!mat && !sol) {
+        continue; // Ignorar filas vacías con casillas o fórmulas
+      }
+    } else if (!hasActualContent) {
+      continue;
+    }
+
     results.push(rowObj);
   }
 

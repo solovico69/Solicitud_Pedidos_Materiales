@@ -42,7 +42,12 @@ async function loadData() {
   try {
     const res = await SHEETS_API.getSolicitudes();
     if (res && res.data) {
-      allRows = res.data;
+      // Filtrar únicamente filas válidas que posean contenido real de solicitud (material o solicitante)
+      allRows = res.data.filter(r => {
+        const mat = String(r['MATERIAL'] || '').trim();
+        const sol = String(r['SOLICITANTE'] || '').trim();
+        return mat !== '' || sol !== '';
+      });
       populateObraFilter(allRows);
       groupAndRenderOrders();
       updateConnectionStatus(true);
@@ -102,7 +107,12 @@ function groupAndRenderOrders() {
   const map = new Map();
 
   allRows.forEach(row => {
-    const folio = String(row['N# SOLICITUD'] || `REQ-F${row._rowIndex}`).trim();
+    const mat = String(row['MATERIAL'] || '').trim();
+    const sol = String(row['SOLICITANTE'] || '').trim();
+    if (!mat && !sol) return; // Omitir cualquier fila sin datos reales
+
+    const rawFolio = String(row['N# SOLICITUD'] || '').trim();
+    const folio = rawFolio || `REQ-${row._rowIndex}`;
     if (!map.has(folio)) {
       map.set(folio, {
         folio: folio,
