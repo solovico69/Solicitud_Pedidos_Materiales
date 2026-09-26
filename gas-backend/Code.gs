@@ -30,7 +30,9 @@ const SHEET_HEADER_ROWS = {
 // Se obtienen de ScriptProperties o pueden definirse manualmente aquí
 const TELEGRAM_CONFIG = {
   BOT_TOKEN: PropertiesService.getScriptProperties().getProperty("TELEGRAM_BOT_TOKEN") || "",
+  BOT_TOKEN_FOTOS: PropertiesService.getScriptProperties().getProperty("TELEGRAM_BOT_TOKEN_FOTOS") || "",
   CHAT_ID: PropertiesService.getScriptProperties().getProperty("TELEGRAM_CHAT_ID") || "",
+  CHAT_ID_FOTOS: PropertiesService.getScriptProperties().getProperty("TELEGRAM_CHAT_ID_FOTOS") || "",
   APPROVER_URL: PropertiesService.getScriptProperties().getProperty("APPROVER_URL") || "",
 };
 
@@ -49,6 +51,7 @@ const EXPECTED_HEADERS = {
     "APROBADO",
     "FECHA APROBADO",
     "OBSERVACION POR ITEM",
+    "TIENE_FOTOS",
   ],
   [SHEET_NAMES.ENTRADA]: ["N#", "MATERIAL", "METRICA", "CANTIDAD", "FECHA"],
   [SHEET_NAMES.SALIDA]: [
@@ -355,9 +358,17 @@ function insertSolicitudLines_(lines) {
         return;
       }
 
-      let val = line[h];
-      if (val === undefined || val === null) {
-        val = "";
+      const hUpper = String(h).trim().toUpperCase();
+      let val;
+      if (hUpper === "TIENE_FOTOS" || hUpper === "TIENE FOTOS" || hUpper === "TIENE_FOTO") {
+        const hasPhotos = (Array.isArray(line.FOTOS) && line.FOTOS.length > 0) ||
+                          (Array.isArray(line.fotos) && line.fotos.length > 0);
+        val = hasPhotos ? true : false;
+      } else {
+        val = line[h];
+        if (val === undefined || val === null) {
+          val = "";
+        }
       }
       sheet.getRange(targetRow, colIdx).setValue(val);
     });
@@ -444,61 +455,6 @@ function updateAprobaciones_(items) {
   };
 }
 
-/**
- * Envía una notificación instantánea a Telegram al recibir una nueva solicitud de materiales.
- * @param {string} folio
- * @param {string} solicitante
- * @param {string} obra
- * @param {Object[]} lines
- */
-function sendTelegramAlert_(folio, solicitante, obra, lines) {
-  const token = TELEGRAM_CONFIG.BOT_TOKEN;
-  const chatId = TELEGRAM_CONFIG.CHAT_ID;
-
-  if (!token || !chatId) {
-    console.log("[Telegram] Alerta omitida: TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no configurados.");
-    return;
-  }
-
-  try {
-    const approverUrl = TELEGRAM_CONFIG.APPROVER_URL;
-    const btnLink = approverUrl ? `\n\n👉 [Abrir App para Aprobar](${approverUrl})` : "";
-
-    const linesList = lines.map((l) => {
-      const cant = l.CANTIDAD || l.cantidad || "";
-      const metric = l.METRICA || l.unidad || "";
-      const mat = l.MATERIAL || l.material || "";
-      const sec = l["SECTOR DE LA OBRA"] || l.sector ? `_(${l["SECTOR DE LA OBRA"] || l.sector})_` : "";
-      return `• *${cant} ${metric}* - ${mat} ${sec}`;
-    }).join("\n");
-
-    const message = `🚨 *NUEVA SOLICITUD DE MATERIALES*\n\n` +
-      `📋 *Folio:* \`${folio}\`\n` +
-      `👤 *Solicitante:* ${solicitante}\n` +
-      `🏗️ *Obra:* ${obra}\n` +
-      `📦 *Líneas Solicitadas (${lines.length}):*\n` +
-      `${linesList}` +
-      btnLink;
-
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    const payload = {
-      chat_id: chatId,
-      text: message,
-      parse_mode: "Markdown",
-      disable_web_page_preview: false,
-    };
-
-    UrlFetchApp.fetch(url, {
-      method: "post",
-      contentType: "application/json",
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true,
-    });
-    console.log(`[Telegram] Notificación enviada con éxito para folio ${folio}`);
-  } catch (err) {
-    console.warn(`[Telegram] Error enviando alerta: ${err.message}`);
-  }
-}
 
 /**
  * Agrega un nuevo ítem a la hoja Base_Datos en la columna específica correspondiente.
@@ -749,8 +705,15 @@ function doPost(e) {
         const targetRow = insertRes.firstRow;
         const folio = insertRes.folio;
 
-        // Disparar notificación a Telegram en segundo plano
+        // Disparar notificación a Telegram (Chat 1 - Aprobador)
         sendTelegramAlert_(folio, item.SOLICITANTE, item.OBRA, [item]);
+
+        // Disparar envío de fotos a Telegram (Chat 2 - Compras/Almacén)
+        try {
+          processAndSendPhotosToTelegram_(folio, [item]);
+        } catch (photoErr) {
+          console.warn("[Telegram Fotos] Error en submitSolicitud:", photoErr.message);
+        }
 
         return buildResponse_({
           success: true,
@@ -776,9 +739,16 @@ function doPost(e) {
         const insertRes = insertSolicitudLines_(lines);
         const folio = insertRes.folio;
 
-        // Disparar notificación a Telegram en segundo plano
+        // Disparar notificación a Telegram (Chat 1 - Aprobador)
         const firstLine = lines[0] || {};
         sendTelegramAlert_(folio, firstLine.SOLICITANTE, firstLine.OBRA, lines);
+
+        // Disparar envío de fotos a Telegram (Chat 2 - Compras/Almacén)
+        try {
+          processAndSendPhotosToTelegram_(folio, lines);
+        } catch (photoErr) {
+          console.warn("[Telegram Fotos] Error en submitMultipleSolicitudes:", photoErr.message);
+        }
 
         return buildResponse_({
           success: true,
@@ -979,6 +949,223 @@ function testTelegramAlert() {
   }
 }
 
+/**
+ * Escapa caracteres especiales para el formato HTML de Telegram.
+ * @param {string} str
+ * @return {string}
+ */
+function escapeTelegramHtml_(str) {
+  if (str === undefined || str === null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Convierte un string Base64 (DataURL o crudo) a un Blob de Apps Script.
+ * @param {string} base64Data
+ * @param {string} filename
+ * @return {GoogleAppsScript.Base.Blob}
+ */
+function base64ToBlob_(base64Data, filename) {
+  let contentType = "image/jpeg";
+  let base64String = base64Data;
+
+  if (typeof base64Data === "string" && base64Data.indexOf("data:") === 0) {
+    const parts = base64Data.split(",");
+    const match = parts[0].match(/:(.*?);/);
+    if (match && match[1]) {
+      contentType = match[1];
+    }
+    base64String = parts[1];
+  }
+
+  const decoded = Utilities.base64Decode(base64String);
+  return Utilities.newBlob(decoded, contentType, filename);
+}
+
+/**
+ * Despacha las fotos de las partidas de una solicitud al canal de Compras/Almacén (TELEGRAM_CHAT_ID_FOTOS).
+ * - Si un ítem tiene 0 fotos: se ignora.
+ * - Si tiene 1 foto: se envía vía endpoint sendPhoto.
+ * - Si tiene 2 o 3 fotos: se envía agrupado vía sendMediaGroup.
+ * - Envoltorio try/catch para garantizar que fallos en Telegram no afecten Google Sheets.
+ * @param {string} folio
+ * @param {Array<Object>} lines
+ */
+function processAndSendPhotosToTelegram_(folio, lines) {
+  if (!Array.isArray(lines) || lines.length === 0) return;
+
+  const props = PropertiesService.getScriptProperties();
+  const botToken = (props.getProperty("TELEGRAM_BOT_TOKEN_FOTOS") || props.getProperty("TELEGRAM_BOT_TOKEN") || TELEGRAM_CONFIG.BOT_TOKEN_FOTOS || TELEGRAM_CONFIG.BOT_TOKEN || "").trim();
+  const chatIdFotos = (props.getProperty("TELEGRAM_CHAT_ID_FOTOS") || TELEGRAM_CONFIG.CHAT_ID_FOTOS || "").trim();
+
+  if (!botToken || !chatIdFotos) {
+    console.log("[Telegram Fotos] Envío omitido: TELEGRAM_BOT_TOKEN (o TELEGRAM_BOT_TOKEN_FOTOS) o TELEGRAM_CHAT_ID_FOTOS no configurado.");
+    return;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const rawPhotos = line.FOTOS || line.fotos || [];
+    if (!Array.isArray(rawPhotos) || rawPhotos.length === 0) {
+      continue;
+    }
+
+    try {
+      const material = line.MATERIAL || line.material || "Material";
+      const cantidad = line.CANTIDAD || line.cantidad || "";
+      const metrica = line.METRICA || line.unidad || "";
+      const sector = line["SECTOR DE LA OBRA"] || line.sector || "No especificado";
+      const obra = line.OBRA || line.obra || "No especificada";
+      const solicitante = line.SOLICITANTE || line.solicitante || "No especificado";
+      const fecha = line.FECHA || line.fecha || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT-4", "dd-MM-yyyy");
+
+      const caption =
+        `📸 <b>MUESTRA DE MATERIAL / COMPRAS</b>\n\n` +
+        `📋 <b>Folio:</b> <code>${escapeTelegramHtml_(folio || "S/F")}</code> (Partida #${i + 1})\n` +
+        `🧱 <b>Material:</b> ${escapeTelegramHtml_(material)}\n` +
+        `🔢 <b>Cantidad:</b> ${escapeTelegramHtml_(cantidad)} ${escapeTelegramHtml_(metrica)}\n` +
+        `📍 <b>Sector:</b> ${escapeTelegramHtml_(sector)}\n` +
+        `🏗️ <b>Obra:</b> ${escapeTelegramHtml_(obra)}\n` +
+        `👷‍♂️ <b>Solicitante:</b> ${escapeTelegramHtml_(solicitante)}\n` +
+        `🗓️ <b>Fecha:</b> ${escapeTelegramHtml_(fecha)}`;
+
+      const photoBlobs = rawPhotos.slice(0, 3).map((b64, pIdx) => {
+        return base64ToBlob_(b64, `partida_${i + 1}_foto_${pIdx + 1}.jpg`);
+      });
+
+      if (photoBlobs.length === 1) {
+        // Enviar 1 foto vía sendPhoto
+        const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+        const payload = {
+          chat_id: chatIdFotos,
+          photo: photoBlobs[0],
+          caption: caption,
+          parse_mode: "HTML",
+        };
+        UrlFetchApp.fetch(url, {
+          method: "post",
+          payload: payload,
+          muteHttpExceptions: true,
+        });
+        console.log(`[Telegram Fotos] Foto única enviada para partida #${i + 1} del folio ${folio}`);
+      } else if (photoBlobs.length > 1) {
+        // Enviar 2 o 3 fotos vía sendMediaGroup
+        const url = `https://api.telegram.org/bot${botToken}/sendMediaGroup`;
+        const media = [];
+        const payload = {
+          chat_id: chatIdFotos,
+        };
+
+        photoBlobs.forEach((blob, bIdx) => {
+          const attachName = `photo${bIdx}`;
+          payload[attachName] = blob;
+          const mediaItem = {
+            type: "photo",
+            media: `attach://${attachName}`,
+          };
+          if (bIdx === 0) {
+            mediaItem.caption = caption;
+            mediaItem.parse_mode = "HTML";
+          }
+          media.push(mediaItem);
+        });
+
+        payload.media = JSON.stringify(media);
+        UrlFetchApp.fetch(url, {
+          method: "post",
+          payload: payload,
+          muteHttpExceptions: true,
+        });
+        console.log(`[Telegram Fotos] Álbum (${photoBlobs.length} fotos) enviado para partida #${i + 1} del folio ${folio}`);
+      }
+    } catch (itemErr) {
+      console.warn(`[Telegram Fotos] Error en partida #${i + 1}: ${itemErr.message}`);
+    }
+  }
+}
+
+/**
+ * Permite probar el canal de fotos de Telegram directamente desde Google Sheets.
+ */
+function testTelegramPhotosChannel() {
+  const props = PropertiesService.getScriptProperties();
+  const botToken = (props.getProperty("TELEGRAM_BOT_TOKEN_FOTOS") || props.getProperty("TELEGRAM_BOT_TOKEN") || TELEGRAM_CONFIG.BOT_TOKEN_FOTOS || TELEGRAM_CONFIG.BOT_TOKEN || "").trim();
+  const chatIdFotos = (props.getProperty("TELEGRAM_CHAT_ID_FOTOS") || TELEGRAM_CONFIG.CHAT_ID_FOTOS || "").trim();
+
+  const ui = SpreadsheetApp.getUi();
+
+  if (!botToken || !chatIdFotos) {
+    ui.alert(
+      "⚠️ Configuración Incompleta",
+      "Falta configurar una o ambas propiedades en:\n" +
+        "Configuración del proyecto > Propiedades de la secuencia de comandos:\n\n" +
+        `• TELEGRAM_BOT_TOKEN: ${botToken ? "Configurado (" + botToken.slice(0, 10) + "...)" : "FALTA"}\n` +
+        `• TELEGRAM_CHAT_ID_FOTOS: ${chatIdFotos ? chatIdFotos : "FALTA"}`,
+      ui.ButtonSet.OK,
+    );
+    return;
+  }
+
+  try {
+    const base64Pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const testBlob = Utilities.newBlob(Utilities.base64Decode(base64Pixel), "image/png", "test_foto.png");
+
+    const caption =
+      `📸 <b>CANAL DE FOTOS VINCULADO CON ÉXITO</b>\n\n` +
+      `✅ Las fotos de muestras de obra para Compras y Almacén llegarán a este canal.\n` +
+      `📋 <b>Chat ID:</b> <code>${chatIdFotos}</code>\n` +
+      `⏱️ <b>Fecha/Hora:</b> ${Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT-4", "dd-MM-yyyy HH:mm:ss")}`;
+
+    const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+    const payload = {
+      chat_id: chatIdFotos,
+      photo: testBlob,
+      caption: caption,
+      parse_mode: "HTML",
+    };
+
+    const res = UrlFetchApp.fetch(url, {
+      method: "post",
+      payload: payload,
+      muteHttpExceptions: true,
+    });
+
+    const code = res.getResponseCode();
+    let body = {};
+    try {
+      body = JSON.parse(res.getContentText());
+    } catch (_) {}
+
+    if (code === 200 && body.ok) {
+      ui.alert(
+        "✅ Canal de Fotos Conectado con Éxito",
+        `¡Muestra de prueba entregada correctamente a Telegram!\n\n` +
+          `• Chat ID: ${chatIdFotos}\n` +
+          `• Revisa tu aplicación de Telegram en el canal/grupo de Compras.`,
+        ui.ButtonSet.OK,
+      );
+    } else {
+      ui.alert(
+        "❌ Fallo al Enviar al Canal de Fotos",
+        `Telegram rechazó el envío:\n\n` +
+          `Código: ${code}\n` +
+          `Descripción: ${body.description || res.getContentText()}\n\n` +
+          `Consejo: Asegúrate de que el bot sea miembro o administrador del grupo/canal con permiso para publicar fotos.`,
+        ui.ButtonSet.OK,
+      );
+    }
+  } catch (err) {
+    ui.alert(
+      "❌ Error en la Ejecución",
+      `Ocurrió un error inesperado al probar Telegram:\n${err.message}`,
+      ui.ButtonSet.OK,
+    );
+  }
+}
+
 // ============================================
 // MENÚ DE SHEETS & INSTALACIÓN
 // ============================================
@@ -991,6 +1178,7 @@ function onOpen() {
     .addItem("📁 Ir a Base de Datos", "navBaseDatos_")
     .addSeparator()
     .addItem("📱 Probar Notificación Telegram", "testTelegramAlert")
+    .addItem("📸 Probar Canal de Fotos Telegram", "testTelegramPhotosChannel")
     .addItem("🌐 Obtener URL de Web App", "showWebAppUrl_")
     .addToUi();
 }

@@ -42,12 +42,64 @@ let UNIDADES = [
 ];
 
 const INITIAL_ROWS = [
-  { sector: "", material: "", unidad: "", cantidad: "" },
-  { sector: "", material: "", unidad: "", cantidad: "" }
+  { sector: "", material: "", unidad: "", cantidad: "", fotos: [] },
+  { sector: "", material: "", unidad: "", cantidad: "", fotos: [] }
 ];
 
 let currentRows = [];
 let baseDatosCache = null;
+
+/**
+ * Comprime una imagen en el cliente utilizando HTML5 Canvas.
+ * Limita la dimensión máxima a 1280px y aplica compresión JPEG (calidad 0.75).
+ * Genera un payload ligero de ~150-250 KB en Base64 DataURL.
+ * @param {File} file
+ * @param {number} maxDimension
+ * @param {number} quality
+ * @return {Promise<string>}
+ */
+async function compressImage(file, maxDimension = 1280, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      return reject(new Error('El archivo seleccionado no es una imagen válida.'));
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Error al leer el archivo fotográfico.'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Error al decodificar la imagen seleccionada.'));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return reject(new Error('No se pudo inicializar el lienzo Canvas de compresión.'));
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 // ============================================
 // INICIALIZACIÓN
@@ -283,11 +335,96 @@ function renderRows() {
       ${sectorWrap}
       ${materialWrap}
       ${metricWrap}
+
+      <!-- SECCIÓN DE MUESTRAS FOTOGRÁFICAS (COMPRAS & ALMACÉN) -->
+      <div class="pt-2.5 border-t border-slate-200/70 dark:border-slate-800 space-y-2">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-1.5 text-on-surface-variant dark:text-slate-400 font-label-sm">
+            <span class="material-symbols-outlined text-[17px] text-primary dark:text-amber-400">add_a_photo</span>
+            <span class="font-semibold">Muestras Fotográficas</span>
+            <span class="text-xs text-outline/80 dark:text-slate-500">(Opcional • Máx. 3)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div id="photo-loading-${index}" class="hidden flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container dark:bg-slate-800 text-primary dark:text-amber-400 font-label-sm text-xs">
+              <span class="animate-spin h-3.5 w-3.5 border-2 border-primary dark:border-amber-400 border-t-transparent rounded-full"></span>
+              <span>Comprimiendo...</span>
+            </div>
+            <label for="photo-input-${index}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${(row.fotos && row.fotos.length >= 3) ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-primary/10 dark:bg-amber-500/10 text-primary dark:text-amber-400 hover:bg-primary/20 dark:hover:bg-amber-500/20 cursor-pointer'} transition-colors font-label-sm font-semibold select-none text-xs shadow-xs">
+              <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+              <span>Adjuntar Foto (${(row.fotos ? row.fotos.length : 0)}/3)</span>
+            </label>
+            <input type="file" id="photo-input-${index}" accept="image/*" capture="environment" class="hidden" ${(row.fotos && row.fotos.length >= 3) ? 'disabled' : ''} onchange="handlePhotoUpload(${index}, this)" />
+          </div>
+        </div>
+
+        <!-- CONTENEDOR DE MINIATURAS PREVIAS -->
+        ${(Array.isArray(row.fotos) && row.fotos.length > 0) ? `
+          <div class="flex items-center gap-2.5 overflow-x-auto py-1.5 px-0.5">
+            ${row.fotos.map((b64, pIdx) => `
+              <div class="photo-thumb-wrap" title="Muestra #${pIdx + 1}">
+                <img src="${b64}" alt="Muestra ${pIdx + 1}" class="photo-thumb-img" />
+                <button type="button" onclick="removePhoto(${index}, ${pIdx})" title="Descartar foto" class="photo-thumb-remove">×</button>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
     `;
     container.appendChild(rowCard);
   });
 
   updateCounters();
+}
+
+/**
+ * Procesa la selección de fotos, comprimiéndolas en cliente antes de agregarlas a la partida.
+ * @param {number} rowIndex
+ * @param {HTMLInputElement} inputEl
+ */
+async function handlePhotoUpload(rowIndex, inputEl) {
+  const files = Array.from(inputEl.files || []);
+  if (!files || files.length === 0) return;
+
+  const row = currentRows[rowIndex];
+  if (!row) return;
+  if (!Array.isArray(row.fotos)) row.fotos = [];
+
+  const availableSlots = 3 - row.fotos.length;
+  if (availableSlots <= 0) {
+    showToast('⚠️ Límite de 3 fotos alcanzado para esta partida.');
+    inputEl.value = '';
+    return;
+  }
+
+  const filesToProcess = files.slice(0, availableSlots);
+  const loadingEl = document.getElementById(`photo-loading-${rowIndex}`);
+  if (loadingEl) loadingEl.classList.remove('hidden');
+
+  try {
+    for (const file of filesToProcess) {
+      const compressedDataUrl = await compressImage(file, 1280, 0.75);
+      row.fotos.push(compressedDataUrl);
+    }
+    renderRows();
+  } catch (err) {
+    console.error('[Fotos] Error al procesar imagen:', err);
+    showToast(`❌ Error al procesar imagen: ${err.message}`);
+  } finally {
+    if (loadingEl) loadingEl.classList.add('hidden');
+    inputEl.value = '';
+  }
+}
+
+/**
+ * Elimina una foto específica del arreglo de la partida.
+ * @param {number} rowIndex
+ * @param {number} photoIdx
+ */
+function removePhoto(rowIndex, photoIdx) {
+  if (currentRows[rowIndex] && Array.isArray(currentRows[rowIndex].fotos)) {
+    currentRows[rowIndex].fotos.splice(photoIdx, 1);
+    renderRows();
+  }
 }
 
 function updateRowField(index, field, value) {
@@ -314,7 +451,8 @@ function addMaterialRow() {
     sector: '',
     material: '',
     unidad: '',
-    cantidad: ''
+    cantidad: '',
+    fotos: []
   });
   renderRows();
 }
@@ -377,7 +515,7 @@ async function handleSubmit() {
     return;
   }
 
-  // Mapeo estricto por nombres de encabezado
+  // Mapeo estricto por nombres de encabezado con adjuntos fotográficos
   const lines = validRows.map(row => ({
     FECHA: fecha,
     SOLICITANTE: profesional,
@@ -386,8 +524,17 @@ async function handleSubmit() {
     MATERIAL: row.material,
     METRICA: row.unidad,
     CANTIDAD: row.cantidad,
-    APROBADO: 'Pendiente'
+    APROBADO: 'Pendiente',
+    FOTOS: Array.isArray(row.fotos) ? row.fotos : []
   }));
+
+  const totalPhotos = lines.reduce((acc, l) => acc + (Array.isArray(l.FOTOS) ? l.FOTOS.length : 0), 0);
+
+  // Validación de red si hay fotos (evita saturar almacenamiento local con colas pesadas de Base64)
+  if (!navigator.onLine && totalPhotos > 0) {
+    showToast('⚠️ Estás sin conexión. Las fotos de muestra requieren internet para enviarse al canal de Compras. Conéctate a una red móvil o Wi-Fi para continuar.', 6000);
+    return;
+  }
 
   const btnSubmit = document.getElementById('btnSubmitSync');
   const btnIcon = document.getElementById('btnIcon');
@@ -425,7 +572,12 @@ async function handleSubmit() {
   } catch (err) {
     console.error('[App] Error al enviar solicitud:', err);
 
-    // Encolar offline para resiliencia
+    if (totalPhotos > 0) {
+      showToast('⚠️ Falló la conexión con el servidor. Las fotos no se pudieron enviar. Conéctate a internet para reintentar.', 6000);
+      return;
+    }
+
+    // Encolar offline para resiliencia (solo partidas sin fotos para no saturar almacenamiento local)
     SYNC.enqueue({
       action: lines.length === 1 ? 'submitSolicitud' : 'submitMultipleSolicitudes',
       lines: lines,
@@ -1026,5 +1178,8 @@ window.closeSetupModal = closeSetupModal;
 window.doSetup = doSetup;
 window.showToast = showToast;
 window.toggleTheme = toggleTheme;
+window.handlePhotoUpload = handlePhotoUpload;
+window.removePhoto = removePhoto;
+window.compressImage = compressImage;
 
 
