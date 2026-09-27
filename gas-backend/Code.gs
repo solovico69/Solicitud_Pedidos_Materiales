@@ -79,7 +79,7 @@ const EXPECTED_HEADERS = {
 
 // Columnas formuladas protegidas (NUNCA sobrescribir por protocolo)
 const PROTECTED_FORMULA_COLUMNS = {
-  [SHEET_NAMES.SOLICITUDES]: ["N#", "N# SOLICITUD"],
+  [SHEET_NAMES.SOLICITUDES]: ["N#", "N# SOLICITUD", "METRICA"],
   [SHEET_NAMES.ENTRADA]: ["N#"],
   [SHEET_NAMES.SALIDA]: ["N#"],
   [SHEET_NAMES.INVENTARIO]: [
@@ -321,6 +321,9 @@ function ensureFormulasPropagated_(sheet, targetRow, protectedHeaders) {
   if (targetRow <= headerRow + 1) return; // Primera fila de datos
 
   protectedHeaders.forEach((hName) => {
+    // Si la columna es METRICA, está gobernada por ARRAYFORMULA en la cabecera/fila 2; no propagar celda a celda
+    if (hName === "METRICA") return;
+
     const colIdx = getColumnIndexSafe_(sheet.getName(), hName);
     if (!colIdx) return;
 
@@ -333,7 +336,10 @@ function ensureFormulasPropagated_(sheet, targetRow, protectedHeaders) {
       const prevCell = sheet.getRange(r, colIdx);
       const prevFormula = prevCell.getFormulaR1C1();
       if (prevFormula) {
-        targetCell.setFormulaR1C1(prevFormula);
+        // Ignorar fórmulas matriciales para evitar romper expansiones automáticas
+        if (!prevFormula.toUpperCase().includes("ARRAYFORMULA")) {
+          targetCell.setFormulaR1C1(prevFormula);
+        }
         break;
       }
     }
@@ -343,8 +349,8 @@ function ensureFormulasPropagated_(sheet, targetRow, protectedHeaders) {
 /**
  * Inserta múltiples partidas de solicitud en la hoja "Solicitudes"
  * CUMPLIENDO ESTRICTAMENTE EL PROTOCOLO DE PROTECCIÓN DE FÓRMULAS:
- * - Omite las columnas formuladas ('N#' y 'N# SOLICITUD').
- * - Solo escribe en las columnas de entrada: FECHA, SOLICITANTE, OBRA, SECTOR DE LA OBRA, MATERIAL, METRICA, CANTIDAD, APROBADO.
+ * - Omite las columnas formuladas ('N#', 'N# SOLICITUD' y 'METRICA').
+ * - Solo escribe en las columnas de entrada: FECHA, SOLICITANTE, OBRA, SECTOR DE LA OBRA, MATERIAL, CANTIDAD, APROBADO.
  * @param {Object[]} lines - Array de datos de cada partida
  * @return {Object} Resultado de la inserción con números de fila afectados
  */
@@ -473,6 +479,155 @@ function updateAprobaciones_(items) {
   };
 }
 
+/**
+ * Obtiene las partidas de "ENTRADA DE MATERIALES EN OBRAS" desde la hoja Entrada_Materiales.
+ * Columnas H:N (Cols 8 a 14), comenzando en fila 4.
+ * Omite escribir en H..L (columnas formuladas).
+ */
+function getEntradasObra_() {
+  const sheet = getSheet_(SHEET_NAMES.ENTRADA);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 4) return [];
+
+  // Rango H4:N{lastRow} -> 7 columnas
+  const values = sheet.getRange(4, 8, lastRow - 3, 7).getValues();
+  const results = [];
+
+  for (let i = 0; i < values.length; i++) {
+    const rowNum = 4 + i;
+    const [eNum, obra, material, metrica, cantDespachada, cantRecibida, fecha] = values[i];
+    if (!material || String(material).trim() === "") continue;
+
+    let fechaStr = "";
+    if (fecha instanceof Date) {
+      fechaStr = Utilities.formatDate(fecha, Session.getScriptTimeZone() || "GMT-4", "yyyy-MM-dd");
+    } else if (fecha) {
+      fechaStr = String(fecha).trim();
+    }
+
+    const recVal = cantRecibida !== "" && cantRecibida !== null && !isNaN(cantRecibida)
+      ? Number(cantRecibida)
+      : (cantRecibida !== "" && cantRecibida !== null ? String(cantRecibida) : "");
+
+    results.push({
+      row: rowNum,
+      e_num: eNum !== "" ? eNum : rowNum - 3,
+      obra: String(obra || "").trim(),
+      material: String(material || "").trim(),
+      metrica: String(metrica || "").trim(),
+      cant_despachada: cantDespachada !== "" && !isNaN(cantDespachada) ? Number(cantDespachada) : (cantDespachada || 0),
+      cant_recibida: recVal,
+      fecha: fechaStr,
+      is_received: (cantRecibida !== "" && cantRecibida !== null)
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Guarda la confirmación de recepción en la tabla "ENTRADA DE MATERIALES EN OBRAS".
+ * Modifica ÚNICAMENTE las columnas 13 (CANT_RECIBIDA) y 14 (E_FECHA).
+ * NUNCA toca las columnas formuladas 8 a 12 (E_N#, E_OBRA, E_MATERIAL, E_METRICA, E_CANTIDAD).
+ */
+function saveEntradaObra_(data) {
+  const row = parseInt(data.row, 10);
+  if (isNaN(row) || row < 4) {
+    throw new Error("Número de fila inválido para Entrada en Obra: " + data.row);
+  }
+
+  const sheet = getSheet_(SHEET_NAMES.ENTRADA);
+  const cantRecibida = data.cant_recibida !== undefined && data.cant_recibida !== null ? data.cant_recibida : "";
+  const fecha = data.fecha ? String(data.fecha).trim() : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT-4", "yyyy-MM-dd");
+
+  // Columna 13 = M (CANT_RECIBIDA), Columna 14 = N (E_FECHA)
+  sheet.getRange(row, 13).setValue(cantRecibida !== "" ? Number(cantRecibida) : "");
+  sheet.getRange(row, 14).setValue(fecha);
+  SpreadsheetApp.flush();
+
+  return {
+    success: true,
+    message: "Entrada en obra guardada exitosamente.",
+    row: row,
+    cant_recibida: cantRecibida,
+    fecha: fecha
+  };
+}
+
+/**
+ * Obtiene los registros de "USO DE MATERIALES EN OBRA" desde la hoja Salida_Materiales.
+ * Columnas I:O (Cols 9 a 15), comenzando en fila 4.
+ */
+function getUsosObra_() {
+  const sheet = getSheet_(SHEET_NAMES.SALIDA);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 4) return [];
+
+  // Rango I4:O{lastRow} -> 7 columnas
+  const values = sheet.getRange(4, 9, lastRow - 3, 7).getValues();
+  const results = [];
+
+  for (let i = 0; i < values.length; i++) {
+    const rowNum = 4 + i;
+    const [uNum, obra, material, metrica, cantRecibida, cantUsada, fecha] = values[i];
+    if (!material || String(material).trim() === "") continue;
+
+    let fechaStr = "";
+    if (fecha instanceof Date) {
+      fechaStr = Utilities.formatDate(fecha, Session.getScriptTimeZone() || "GMT-4", "yyyy-MM-dd");
+    } else if (fecha) {
+      fechaStr = String(fecha).trim();
+    }
+
+    const usadaVal = cantUsada !== "" && cantUsada !== null && !isNaN(cantUsada)
+      ? Number(cantUsada)
+      : (cantUsada !== "" && cantUsada !== null ? String(cantUsada) : "");
+
+    results.push({
+      row: rowNum,
+      u_num: uNum !== "" ? uNum : rowNum - 3,
+      obra: String(obra || "").trim(),
+      material: String(material || "").trim(),
+      metrica: String(metrica || "").trim(),
+      cant_recibida: cantRecibida !== "" && !isNaN(cantRecibida) ? Number(cantRecibida) : (cantRecibida || 0),
+      cant_usada: usadaVal,
+      fecha: fechaStr,
+      is_used: (cantUsada !== "" && cantUsada !== null)
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Guarda el registro de uso en la tabla "USO DE MATERIALES EN OBRA".
+ * Modifica ÚNICAMENTE las columnas 14 (CANT_USADA) y 15 (U_FECHA).
+ * NUNCA toca las columnas formuladas 9 a 13 (U_N#, U_OBRA, U_MATERIAL, U_METRICA, U_CANT_RECIBIDA).
+ */
+function saveUsoObra_(data) {
+  const row = parseInt(data.row, 10);
+  if (isNaN(row) || row < 4) {
+    throw new Error("Número de fila inválido para Uso en Obra: " + data.row);
+  }
+
+  const sheet = getSheet_(SHEET_NAMES.SALIDA);
+  const cantUsada = data.cant_usada !== undefined && data.cant_usada !== null ? data.cant_usada : "";
+  const fecha = data.fecha ? String(data.fecha).trim() : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT-4", "yyyy-MM-dd");
+
+  // Columna 14 = N (CANT_USADA), Columna 15 = O (U_FECHA)
+  sheet.getRange(row, 14).setValue(cantUsada !== "" ? Number(cantUsada) : "");
+  sheet.getRange(row, 15).setValue(fecha);
+  SpreadsheetApp.flush();
+
+  return {
+    success: true,
+    message: "Uso de material en obra guardado exitosamente.",
+    row: row,
+    cant_usada: cantUsada,
+    fecha: fecha
+  };
+}
+
 
 /**
  * Agrega un nuevo ítem a la hoja Base_Datos en la columna específica correspondiente.
@@ -486,22 +641,68 @@ function addToBaseDatosCatalog_(entry) {
   const headerRow = getHeaderRowIndex_(SHEET_NAMES.BASE_DATOS);
   const results = {};
 
-  const fieldMapping = [
+  // Caso especial: MATERIAL y METRICA deben alinearse en la misma fila para que VLOOKUP funcione
+  const hasMaterial = entry.material && String(entry.material).trim();
+  const hasMetric = entry.metric && String(entry.metric).trim();
+
+  let matRow = null;
+  if (hasMaterial) {
+    const matVal = String(entry.material).trim();
+    const colIdx = getColumnIndexSafe_(SHEET_NAMES.BASE_DATOS, "MATERIAL");
+    if (colIdx) {
+      const lastRow = Math.max(sheet.getLastRow(), headerRow + 1);
+      const existingVals = sheet
+        .getRange(headerRow + 1, colIdx, lastRow - headerRow, 1)
+        .getValues()
+        .map((r) => String(r[0]).trim().toUpperCase());
+
+      if (existingVals.includes(matVal.toUpperCase())) {
+        results["MATERIAL"] = { added: false, message: "Ya existe", value: matVal };
+      } else {
+        matRow = headerRow + 1;
+        for (let r = 0; r < existingVals.length; r++) {
+          if (existingVals[r] === "") {
+            matRow = headerRow + 1 + r;
+            break;
+          }
+          if (r === existingVals.length - 1) {
+            matRow = headerRow + 1 + existingVals.length;
+          }
+        }
+        sheet.getRange(matRow, colIdx).setValue(matVal);
+        results["MATERIAL"] = { added: true, row: matRow, value: matVal };
+
+        // Si viene con métrica asociada, colocarla en la misma fila de la columna METRICA
+        if (hasMetric) {
+          const metVal = String(entry.metric).trim();
+          const metColIdx = getColumnIndexSafe_(SHEET_NAMES.BASE_DATOS, "METRICA");
+          if (metColIdx) {
+            sheet.getRange(matRow, metColIdx).setValue(metVal);
+            results["METRICA"] = { added: true, row: matRow, value: metVal };
+          }
+        }
+      }
+    }
+  }
+
+  const otherFields = [
     { key: "engineer", header: "ARQUITECTO/INGENIERO" },
     { key: "project", header: "OBRAS" },
     { key: "sector", header: "SECTOR DE LA OBRA" },
-    { key: "material", header: "MATERIAL" },
-    { key: "metric", header: "METRICA" },
   ];
 
-  fieldMapping.forEach((item) => {
+  // Si se envió solo métrica sin material
+  if (!hasMaterial && hasMetric) {
+    otherFields.push({ key: "metric", header: "METRICA" });
+  }
+
+  otherFields.forEach((item) => {
     const value = entry[item.key] ? String(entry[item.key]).trim() : "";
     if (!value) return;
 
     const colIdx = getColumnIndexSafe_(SHEET_NAMES.BASE_DATOS, item.header);
     if (!colIdx) return;
 
-    // Verificar si ya existe en esa columna
     const lastRow = Math.max(sheet.getLastRow(), headerRow + 1);
     const existingVals = sheet
       .getRange(headerRow + 1, colIdx, lastRow - headerRow, 1)
@@ -517,7 +718,6 @@ function addToBaseDatosCatalog_(entry) {
       return;
     }
 
-    // Buscar primera celda vacía en esta columna
     let targetRow = headerRow + 1;
     for (let r = 0; r < existingVals.length; r++) {
       if (existingVals[r] === "") {
@@ -576,6 +776,14 @@ function doGet(e) {
 
       case "getBaseDatos": {
         const data = readSheetData_(SHEET_NAMES.BASE_DATOS);
+        const materialMetricas = {};
+        data.forEach((r) => {
+          const mat = r["MATERIAL"] ? String(r["MATERIAL"]).trim() : "";
+          const met = r["METRICA"] ? String(r["METRICA"]).trim() : "";
+          if (mat && met) {
+            materialMetricas[mat] = met;
+          }
+        });
         const grouped = {
           ingenieros: [
             ...new Set(
@@ -610,6 +818,7 @@ function doGet(e) {
                 .filter((v) => v && String(v).trim()),
             ),
           ],
+          materialMetricas: materialMetricas,
         };
         return buildResponse_({ ...baseMeta, data: grouped });
       }
@@ -640,6 +849,16 @@ function doGet(e) {
 
       case "getInventory": {
         const data = readSheetData_(SHEET_NAMES.INVENTARIO, 150);
+        return buildResponse_({ ...baseMeta, data: data });
+      }
+
+      case "getEntradasObra": {
+        const data = getEntradasObra_();
+        return buildResponse_({ ...baseMeta, data: data });
+      }
+
+      case "getUsosObra": {
+        const data = getUsosObra_();
         return buildResponse_({ ...baseMeta, data: data });
       }
 
@@ -808,6 +1027,26 @@ function doPost(e) {
           success: true,
           message: "Catálogo de Base_Datos actualizado",
           result: result,
+        });
+      }
+
+      // Confirmar recepción en Entrada de Materiales en Obra
+      case "saveEntradaObra": {
+        const data = body.data || body;
+        const result = saveEntradaObra_(data);
+        return buildResponse_({
+          ...baseMeta,
+          ...result,
+        });
+      }
+
+      // Registrar consumo en Uso de Materiales en Obra
+      case "saveUsoObra": {
+        const data = body.data || body;
+        const result = saveUsoObra_(data);
+        return buildResponse_({
+          ...baseMeta,
+          ...result,
         });
       }
 

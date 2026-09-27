@@ -185,6 +185,54 @@ const SHEETS_API = {
   },
 
   /**
+   * Obtiene las entradas despachadas a obras SIN caché.
+   */
+  async fetchEntradasObra() {
+    const res = await this.get('getEntradasObra');
+    return res.data || [];
+  },
+
+  /**
+   * Obtiene las entradas despachadas a obras con caché Stale-While-Revalidate.
+   */
+  async getEntradasObra(onUpdate = null) {
+    return StorageService.getStaleWhileRevalidate('entradas_obra', async () => {
+      return await this.fetchEntradasObra();
+    }, onUpdate);
+  },
+
+  /**
+   * Guarda la confirmación de recepción en obra (CANT_RECIBIDA y E_FECHA).
+   */
+  async saveEntradaObra(entry) {
+    return this.post('saveEntradaObra', { data: entry });
+  },
+
+  /**
+   * Obtiene los usos de materiales en obras SIN caché.
+   */
+  async fetchUsosObra() {
+    const res = await this.get('getUsosObra');
+    return res.data || [];
+  },
+
+  /**
+   * Obtiene los usos de materiales en obras con caché Stale-While-Revalidate.
+   */
+  async getUsosObra(onUpdate = null) {
+    return StorageService.getStaleWhileRevalidate('usos_obra', async () => {
+      return await this.fetchUsosObra();
+    }, onUpdate);
+  },
+
+  /**
+   * Guarda el registro de consumo en obra (CANT_USADA y U_FECHA).
+   */
+  async saveUsoObra(entry) {
+    return this.post('saveUsoObra', { data: entry });
+  },
+
+  /**
    * Comprueba el estado de la conexión con el Google Sheets backend.
    */
   async checkConnection() {

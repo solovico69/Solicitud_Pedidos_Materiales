@@ -12,10 +12,10 @@
   <meta name="theme-color" content="#0F2942">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="description" content="Control de Solicitud de Pedidos de Materiales - Sistema de Gestión Industrial con Sincronización Google Sheets">
-  <meta name="apple-mobile-web-app-title" content="Control Materiales">
+  <meta name="description" content="GIMO - Gestión Integral de Materiales en Obra (Requisición, Entrada de Despachos y Control de Uso)">
+  <meta name="apple-mobile-web-app-title" content="GIMO Obra">
   
-  <title>Industrial Precision • Solicitud de Materiales</title>
+  <title>GIMO • Gestión Integral de Materiales en Obra</title>
   
   <!-- PWA Manifest & Favicon -->
   <link rel="manifest" href="./manifest.json">
@@ -101,8 +101,8 @@
       
       <div class="flex items-start justify-between gap-3">
         <div class="flex flex-col">
-          <span class="font-label-sm uppercase tracking-widest text-on-surface-variant dark:text-slate-400 font-bold">Gestión de Obra • Requisición</span>
-          <h1 class="font-headline-lg text-primary dark:text-white tracking-tight">Control Solicitud de Pedidos Materiales</h1>
+          <span class="font-label-sm uppercase tracking-widest text-on-surface-variant dark:text-slate-400 font-bold">Gestión de Obra • Requisición, Entradas y Uso</span>
+          <h1 class="font-headline-lg text-primary dark:text-white tracking-tight">GIMO • Gestión Integral de Materiales en Obra</h1>
         </div>
         
         <!-- Botones de Acción Superior (Tema y Ajustes) -->
@@ -137,7 +137,7 @@
     </div>
   </header>
 
-  <!-- CACHE STATUS INDICATOR -->
+  <!-- BARRA DE ESTADO & CACHE -->
   <div class="max-w-4xl mx-auto px-4">
     <div id="cacheStatus" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low dark:bg-slate-800/60 text-on-surface-variant dark:text-slate-300 font-label-sm">
       <span class="material-symbols-outlined text-[15px] text-primary dark:text-amber-400">database</span>
@@ -145,8 +145,52 @@
     </div>
   </div>
 
-  <!-- FORM WRAPPER -->
+  <!-- SELECTOR MAESTRO DE OBRA ACTIVA -->
+  <div class="max-w-4xl mx-auto px-4 mt-3">
+    <div class="bg-surface-container-lowest dark:bg-[#1e293b] p-3 sm:p-3.5 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-primary/10 dark:bg-amber-400/10 text-primary dark:text-amber-400 flex items-center justify-center font-bold">
+          <span class="material-symbols-outlined text-[20px]">apartment</span>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant dark:text-slate-400 block">Obra en Ejecución</span>
+          <span class="font-label-md font-bold text-primary dark:text-amber-400" id="currentMasterObraLabel">Todas las Obras</span>
+        </div>
+      </div>
+      <div class="w-full sm:w-auto flex-1 sm:max-w-xs relative">
+        <select id="masterObraSelect" onchange="onMasterObraChanged(this.value)" class="w-full h-10 pl-3 pr-8 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-label-md text-sm focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 appearance-none cursor-pointer">
+          <option value="">Todas las obras...</option>
+        </select>
+        <span class="material-symbols-outlined text-outline dark:text-slate-400 absolute right-2.5 top-2.5 text-[18px] pointer-events-none">expand_more</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVEGACIÓN CORPORATIVA POR PESTAÑAS (SEGMENTED TABS) -->
+  <nav class="max-w-4xl mx-auto px-4 mt-3" aria-label="Navegación de Secciones">
+    <div class="bg-surface-container-low dark:bg-[#1e293b] p-1.5 rounded-2xl flex items-center gap-1.5 shadow-sm border border-slate-200/80 dark:border-slate-800">
+      <button id="tabBtn-solicitudes" onclick="switchMainTab('solicitudes')" type="button" class="flex-1 py-2.5 px-2.5 sm:px-4 rounded-xl font-label-md font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 bg-primary text-white shadow-sm text-xs sm:text-sm cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">assignment_add</span>
+        <span>Solicitud de Pedidos</span>
+      </button>
+      <button id="tabBtn-entradas" onclick="switchMainTab('entradas')" type="button" class="flex-1 py-2.5 px-2.5 sm:px-4 rounded-xl font-label-md font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">local_shipping</span>
+        <span>Entrada en Obra</span>
+        <span id="badgeEntradasPending" class="hidden px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px] font-mono">0</span>
+      </button>
+      <button id="tabBtn-usos" onclick="switchMainTab('usos')" type="button" class="flex-1 py-2.5 px-2.5 sm:px-4 rounded-xl font-label-md font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">construction</span>
+        <span>Uso en Obra</span>
+        <span id="badgeUsosPending" class="hidden px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[10px] font-mono">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN WRAPPER -->
   <main class="p-4 max-w-4xl mx-auto space-y-4 pb-28" id="mainContent">
+    
+    <!-- PESTAÑA 1: SOLICITUD DE PEDIDOS (FORMULARIO PRINCIPAL) -->
+    <div id="tabContent-solicitudes" class="space-y-4 fade-in">
     
     <!-- BLOQUE 1: DATOS DE IDENTIFICACIÓN -->
     <section class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-4 fade-in" aria-label="Datos de Identificación">
@@ -266,6 +310,85 @@
         <span id="btnLabel">Guardar Solicitud y Sincronizar en Sheets</span>
       </button>
     </section>
+    </div><!-- /tabContent-solicitudes -->
+
+    <!-- PESTAÑA 2: ENTRADA DE MATERIALES EN OBRAS -->
+    <div id="tabContent-entradas" class="hidden space-y-4 fade-in">
+      <section class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-emerald-600/10 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-sm">
+              <span class="material-symbols-outlined text-[22px]">local_shipping</span>
+            </div>
+            <div>
+              <h2 class="font-headline-md text-primary dark:text-white">Entrada de Materiales en Obra</h2>
+              <p class="font-body-sm text-on-surface-variant dark:text-slate-400">Recepción física y verificación de despachos en sitio</p>
+            </div>
+          </div>
+          <button type="button" onclick="loadEntradasObra(true)" class="px-3 py-1.5 rounded-xl bg-surface-container-low dark:bg-slate-800 text-primary dark:text-amber-400 hover:bg-surface-container dark:hover:bg-slate-700 font-label-sm font-semibold flex items-center gap-1.5 transition-colors border border-transparent dark:border-slate-700 cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Actualizar</span>
+          </button>
+        </div>
+
+        <!-- Barra de filtros -->
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-1.5 flex-wrap" id="entradasFilterChips">
+            <button type="button" onclick="setEntradasFilter('todos', this)" class="entradas-chip px-3 py-1 rounded-full text-xs font-bold bg-primary dark:bg-amber-500 text-white dark:text-slate-950 shadow-sm cursor-pointer">Todos (<span id="countEntradasTodos">0</span>)</button>
+            <button type="button" onclick="setEntradasFilter('pendientes', this)" class="entradas-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer">Pendientes (<span id="countEntradasPendientes">0</span>)</button>
+            <button type="button" onclick="setEntradasFilter('recibidos', this)" class="entradas-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer">Confirmados (<span id="countEntradasRecibidos">0</span>)</button>
+          </div>
+          <span class="text-xs text-on-surface-variant dark:text-slate-400 font-mono" id="entradasObraIndicator">Obra: Todas</span>
+        </div>
+
+        <!-- Lista de tarjetas de despachos -->
+        <div id="entradasListContainer" class="space-y-3 pt-1">
+          <div class="text-center py-8 text-on-surface-variant dark:text-slate-400 font-body-sm">
+            <span class="material-symbols-outlined text-[32px] text-slate-400 block mb-1 animate-pulse">sync</span>
+            Cargando despachos de obras...
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 3: USO DE MATERIALES EN OBRA -->
+    <div id="tabContent-usos" class="hidden space-y-4 fade-in">
+      <section class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-amber-600/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-sm">
+              <span class="material-symbols-outlined text-[22px]">construction</span>
+            </div>
+            <div>
+              <h2 class="font-headline-md text-primary dark:text-white">Uso de Materiales en Obra</h2>
+              <p class="font-body-sm text-on-surface-variant dark:text-slate-400">Control de consumo diario de materiales recibidos en obra</p>
+            </div>
+          </div>
+          <button type="button" onclick="loadUsosObra(true)" class="px-3 py-1.5 rounded-xl bg-surface-container-low dark:bg-slate-800 text-primary dark:text-amber-400 hover:bg-surface-container dark:hover:bg-slate-700 font-label-sm font-semibold flex items-center gap-1.5 transition-colors border border-transparent dark:border-slate-700 cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Actualizar</span>
+          </button>
+        </div>
+
+        <!-- Barra de filtros -->
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-1.5 flex-wrap" id="usosFilterChips">
+            <button type="button" onclick="setUsosFilter('todos', this)" class="usos-chip px-3 py-1 rounded-full text-xs font-bold bg-primary dark:bg-amber-500 text-white dark:text-slate-950 shadow-sm cursor-pointer">Todos (<span id="countUsosTodos">0</span>)</button>
+            <button type="button" onclick="setUsosFilter('disponibles', this)" class="usos-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer">Sin Consumo (<span id="countUsosDisponibles">0</span>)</button>
+            <button type="button" onclick="setUsosFilter('usados', this)" class="usos-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer">Con Consumo (<span id="countUsosUsados">0</span>)</button>
+          </div>
+          <span class="text-xs text-on-surface-variant dark:text-slate-400 font-mono" id="usosObraIndicator">Obra: Todas</span>
+        </div>
+
+        <!-- Lista de tarjetas de uso -->
+        <div id="usosListContainer" class="space-y-3 pt-1">
+          <div class="text-center py-8 text-on-surface-variant dark:text-slate-400 font-body-sm">
+            <span class="material-symbols-outlined text-[32px] text-slate-400 block mb-1 animate-pulse">sync</span>
+            Cargando inventario de uso en obra...
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
 
   <!-- MODAL DE ÉXITO -->

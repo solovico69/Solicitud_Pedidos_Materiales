@@ -41,6 +41,53 @@ let UNIDADES = [
   "Tonelada (t)"
 ];
 
+// Mapa relacional de Material -> Métrica automática (precargado y sincronizado dinámicamente)
+let MATERIAL_METRICAS = {
+  "Cemento Gris Portland": "Saco / Bolsa",
+  "Cemento Blanco": "Saco / Bolsa",
+  "Arena Lavada": "Metro cúbico (m³)",
+  "Arena Amarilla": "Metro cúbico (m³)",
+  "Grava / Piedra Picada 3/4\"": "Metro cúbico (m³)",
+  "Cabilla / Acero Corrugado 3/8\"": "Varilla / Barra",
+  "Cabilla / Acero Corrugado 1/2\"": "Varilla / Barra",
+  "Cabilla / Acero Corrugado 5/8\"": "Varilla / Barra",
+  "Malla Electrosoldada": "Rollo",
+  "Alambre Dulce / Recocido Cal. 18": "Kilogramo (kg)",
+  "Bloque de Arcilla 10x20x30 cm": "Pieza (pza)",
+  "Bloque de Arcilla 15x20x30 cm": "Pieza (pza)",
+  "Bloque de Concreto 15x20x40 cm": "Pieza (pza)",
+  "Ladrillo Macizo": "Pieza (pza)",
+  "Yeso de Construcción": "Saco / Bolsa",
+  "Pego / Mortero Adhesivo": "Saco / Bolsa",
+  "Cal Hidratada": "Saco / Bolsa",
+  "Tubo PVC Aguas Negras 4\"": "Tramo / Tubo",
+  "Tubo PVC Aguas Negras 2\"": "Tramo / Tubo",
+  "Tubo PVC Aguas Blancas 1/2\"": "Tramo / Tubo",
+  "Tubo PVC Aguas Blancas 3/4\"": "Tramo / Tubo",
+  "Pegamento para PVC": "Litro (L)",
+  "Cable Eléctrico THW #12 AWG": "Metro lineal (m)",
+  "Cable Eléctrico THW #10 AWG": "Metro lineal (m)",
+  "Cable Eléctrico THW #14 AWG": "Metro lineal (m)",
+  "Tubería EMT / Conduflex 1/2\"": "Tramo / Tubo",
+  "Tablas de Madera para Encofrado": "Pieza (pza)",
+  "Cuartones / Tirantes de Madera": "Pieza (pza)",
+  "Clavos de Madera con Cabeza (2\"-4\")": "Kilogramo (kg)",
+  "Clavos de Acero para Concreto": "Kilogramo (kg)",
+  "Pintura de Caucho para Interior": "Cuñete (5 gal)",
+  "Pintura de Esmalte Sintético": "Galón (gal)",
+  "Fondo Anticorrosivo": "Galón (gal)",
+  "Lámina de Drywall 1/2\"": "Plancha / Lámina",
+  "Perfil Perimetral / Montante Drywall": "Pieza (pza)",
+  "Tornillos Drywall Autoperforantes": "Caja",
+  "Cinta para Juntas Drywall": "Rollo",
+  "Pasta Profesional para Drywall": "Cuñete (5 gal)",
+  "Impermeabilizante Asfáltico": "Cuñete (5 gal)",
+  "Manto Asfáltico 3 mm": "Rollo",
+  "Disco de Corte para Concreto 4-1/2\"": "Pieza (pza)",
+  "Cinta de Peligro / Señalización": "Rollo",
+  "Repuestos para Aires Acondicionados": "Unidad (und)"
+};
+
 const INITIAL_ROWS = [
   { sector: "", material: "", unidad: "", cantidad: "", fotos: [] },
   { sector: "", material: "", unidad: "", cantidad: "", fotos: [] }
@@ -187,24 +234,32 @@ function populateDropdowns(baseDatos) {
 
   // 2. Obras
   const obraSelect = document.getElementById('obraSelect');
+  const masterObraSelect = document.getElementById('masterObraSelect');
   const newEngineerProject = document.getElementById('newEngineerProject');
-  if (obraSelect && Array.isArray(baseDatos.obras)) {
-    const currentObra = obraSelect.value;
-    const obrasOptions = '<option disabled selected value="">Seleccione la obra activa...</option>' +
-      baseDatos.obras
-        .filter(v => v && String(v).trim())
-        .map(name => `<option value="${name}">${name}</option>`)
-        .join('') +
-      '<option value="__new_obra__">➕ Nueva obra…</option>';
-    obraSelect.innerHTML = obrasOptions;
-    if (currentObra) obraSelect.value = currentObra;
+
+  if (Array.isArray(baseDatos.obras)) {
+    const validObras = baseDatos.obras.filter(v => v && String(v).trim());
+
+    if (obraSelect) {
+      const currentObra = obraSelect.value;
+      const obrasOptions = '<option disabled selected value="">Seleccione la obra activa...</option>' +
+        validObras.map(name => `<option value="${name}">${name}</option>`).join('') +
+        '<option value="__new_obra__">➕ Nueva obra…</option>';
+      obraSelect.innerHTML = obrasOptions;
+      if (currentObra) obraSelect.value = currentObra;
+    }
+
+    if (masterObraSelect) {
+      const currentMaster = masterObraSelect.value;
+      const masterOptions = '<option value="">Todas las obras...</option>' +
+        validObras.map(name => `<option value="${name}">${name}</option>`).join('');
+      masterObraSelect.innerHTML = masterOptions;
+      if (currentMaster) masterObraSelect.value = currentMaster;
+    }
 
     if (newEngineerProject) {
       newEngineerProject.innerHTML = '<option value="">Asignar a obra...</option>' +
-        baseDatos.obras
-          .filter(v => v && String(v).trim())
-          .map(name => `<option value="${name}">${name}</option>`)
-          .join('');
+        validObras.map(name => `<option value="${name}">${name}</option>`).join('');
     }
   }
 
@@ -218,6 +273,16 @@ function populateDropdowns(baseDatos) {
   if (Array.isArray(baseDatos.metricas) && baseDatos.metricas.length > 0) {
     UNIDADES = baseDatos.metricas.filter(v => v && String(v).trim());
   }
+  if (baseDatos.materialMetricas && typeof baseDatos.materialMetricas === 'object') {
+    MATERIAL_METRICAS = { ...MATERIAL_METRICAS, ...baseDatos.materialMetricas };
+  }
+
+  // Sincronizar automáticamente la métrica en cada fila según su material
+  currentRows.forEach(r => {
+    if (r.material && (!r.unidad || MATERIAL_METRICAS[r.material])) {
+      r.unidad = MATERIAL_METRICAS[r.material] || r.unidad || '';
+    }
+  });
 
   // Refrescar líneas con las nuevas opciones de catálogo
   renderRows();
@@ -243,6 +308,36 @@ function buildNewFieldWrap(wrapId, inputId, placeholder, saveFn, cancelFn) {
       </div>`;
 }
 
+function buildNewMaterialWrap(index) {
+  const unidadOpts = Array.from(new Set(UNIDADES)).filter(Boolean);
+  const optionsHtml = unidadOpts.map(u => `<option value="${u}">`).join('');
+  return `
+    <div id="newMaterialWrap-${index}" class="hidden mt-2 space-y-2.5 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-emerald-600/40 p-3.5 fade-in">
+      <label class="font-label-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[16px]">add_circle</span> Registrar Nuevo Material en Catálogo
+      </label>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <label class="text-[11px] text-on-surface-variant dark:text-slate-400 font-medium mb-1 block">Nombre del Material</label>
+          <input type="text" id="newMaterialInput-${index}" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-slate-800 text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:ring-2 focus:ring-emerald-600 focus:outline-none text-sm" placeholder="Ej: Pego Gris Especial">
+        </div>
+        <div>
+          <label class="text-[11px] text-on-surface-variant dark:text-slate-400 font-medium mb-1 block">Métrica / Unidad Asociada</label>
+          <input type="text" id="newMaterialMetricInput-${index}" list="metricList-${index}" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-slate-800 text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:ring-2 focus:ring-emerald-600 focus:outline-none text-sm" placeholder="Ej: Saco / Bolsa">
+          <datalist id="metricList-${index}">
+            ${optionsHtml}
+          </datalist>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" onclick="cancelNewMaterial(${index})" class="px-3 h-9 rounded-lg bg-surface-container dark:bg-slate-800 text-on-surface dark:text-slate-300 font-label-sm text-xs">Cancelar</button>
+        <button type="button" onclick="saveNewMaterial(${index})" class="px-4 h-9 rounded-lg bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 text-white font-label-sm font-bold text-xs shadow-sm flex items-center gap-1">
+          <span class="material-symbols-outlined text-[15px]">save</span> Guardar Material
+        </button>
+      </div>
+    </div>`;
+}
+
 function renderRows() {
   const container = document.getElementById('materialRowsContainer');
   if (!container) return;
@@ -256,7 +351,11 @@ function renderRows() {
     // Opciones con placeholder tenue deshabilitado al inicio
     const sectorOpts = Array.from(new Set([...SECTORES, row.sector])).filter(Boolean);
     const materialOpts = Array.from(new Set([...MATERIALES, row.material])).filter(Boolean);
-    const unidadOpts = Array.from(new Set([...UNIDADES, row.unidad])).filter(Boolean);
+
+    // Si tiene material pero no unidad, asignar la unidad automática de una vez
+    if (row.material && !row.unidad && MATERIAL_METRICAS[row.material]) {
+      row.unidad = MATERIAL_METRICAS[row.material];
+    }
 
     const sectorHtml = `<option disabled ${!row.sector ? 'selected' : ''} value="">Seleccione el sector...</option>` +
       sectorOpts.map(s => `<option value="${s}" ${row.sector === s ? 'selected' : ''}>${s}</option>`).join('') +
@@ -266,14 +365,9 @@ function renderRows() {
       materialOpts.map(m => `<option value="${m}" ${row.material === m ? 'selected' : ''}>${m}</option>`).join('') +
       '<option value="__new_material__">➕ Nuevo material…</option>';
 
-    const unidadHtml = `<option disabled ${!row.unidad ? 'selected' : ''} value="">Seleccione la métrica...</option>` +
-      unidadOpts.map(u => `<option value="${u}" ${row.unidad === u ? 'selected' : ''}>${u}</option>`).join('') +
-      '<option value="__new_metrica__">➕ Nueva métrica…</option>';
-
     // Bloques inline "Agregar Nuevo" para esta línea
     const sectorWrap = buildNewFieldWrap(`newSectorWrap-${index}`, `newSectorInput-${index}`, 'sector', `saveNewRowSector(${index})`, `cancelNewRowSector(${index})`);
-    const materialWrap = buildNewFieldWrap(`newMaterialWrap-${index}`, `newMaterialInput-${index}`, 'material', `saveNewMaterial(${index})`, `cancelNewMaterial(${index})`);
-    const metricWrap = buildNewFieldWrap(`newMetricWrap-${index}`, `newMetricInput-${index}`, 'métrica / unidad', `saveNewMetric(${index})`, `cancelNewMetric(${index})`);
+    const materialWrap = buildNewMaterialWrap(index);
 
     rowCard.innerHTML = `
       <div class="flex items-center justify-between">
@@ -311,14 +405,18 @@ function renderRows() {
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
         <div class="space-y-1">
-          <label class="font-label-sm text-label-sm text-on-surface-variant dark:text-slate-400 flex items-center gap-1">
-            <span class="material-symbols-outlined text-[15px] text-primary dark:text-amber-400">straighten</span> Métrica / Unidad
+          <label class="font-label-sm text-label-sm text-on-surface-variant dark:text-slate-400 flex items-center justify-between">
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px] text-primary dark:text-amber-400">straighten</span> Métrica / Unidad
+            </span>
+            <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface-container dark:bg-slate-800 text-outline dark:text-slate-400 font-semibold tracking-wider">Automática</span>
           </label>
           <div class="relative">
-            <select onchange="onRowSelectChanged(${index}, 'unidad', this)" class="w-full h-10 pl-3 pr-8 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-transparent dark:border-slate-700 font-body-md focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 focus:outline-none appearance-none cursor-pointer text-sm">
-              ${unidadHtml}
-            </select>
-            <span class="material-symbols-outlined text-outline dark:text-slate-400 absolute right-2.5 top-2.5 text-[18px] pointer-events-none">expand_more</span>
+            <input type="text" id="metricaDisplay-${index}" readonly disabled
+              value="${row.unidad || ''}"
+              placeholder="Automático según material..."
+              class="w-full h-10 pl-3 pr-9 rounded-lg bg-surface-container/70 dark:bg-[#1e293b]/70 text-on-surface dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 font-body-md text-sm font-medium cursor-not-allowed select-none placeholder:text-outline/50 dark:placeholder:text-slate-500" />
+            <span class="material-symbols-outlined text-outline/60 dark:text-slate-500 absolute right-2.5 top-2.5 text-[18px] pointer-events-none">lock</span>
           </div>
         </div>
         <div class="space-y-1">
@@ -334,7 +432,6 @@ function renderRows() {
       </div>
       ${sectorWrap}
       ${materialWrap}
-      ${metricWrap}
 
       <!-- SECCIÓN DE MUESTRAS FOTOGRÁFICAS (COMPRAS & ALMACÉN) -->
       <div class="pt-2.5 border-t border-slate-200/70 dark:border-slate-800 space-y-2">
@@ -693,11 +790,19 @@ function onRowSelectChanged(index, field, selectEl) {
     openNewField(`newMaterialWrap-${index}`, `newMaterialInput-${index}`);
     return;
   }
-  if (val === NEW_OPTION_VALUES.METRICA) {
-    selectEl.value = row.unidad || '';
-    openNewField(`newMetricWrap-${index}`, `newMetricInput-${index}`);
+
+  // Al seleccionar un material existente, autocompletar la métrica en la fila y en la vista
+  if (field === 'material') {
+    const autoMetrica = MATERIAL_METRICAS[val] || '';
+    row.material = val;
+    row.unidad = autoMetrica;
+    const metricaDisplay = document.getElementById(`metricaDisplay-${index}`);
+    if (metricaDisplay) {
+      metricaDisplay.value = autoMetrica;
+    }
     return;
   }
+
   updateRowField(index, field, val);
 }
 
@@ -727,24 +832,43 @@ function cancelNewRowSector(index) {
 }
 
 async function saveNewMaterial(index) {
-  const input = document.getElementById(`newMaterialInput-${index}`);
-  const value = input ? input.value.trim() : '';
-  if (!value) {
+  const inputMat = document.getElementById(`newMaterialInput-${index}`);
+  const inputMet = document.getElementById(`newMaterialMetricInput-${index}`);
+  const matValue = inputMat ? inputMat.value.trim() : '';
+  const metValue = inputMet ? inputMet.value.trim() : '';
+
+  if (!matValue) {
     showToast('⚠️ Escribe el nombre del material');
+    if (inputMat) inputMat.focus();
     return;
   }
-  const row = currentRows[index];
+
+  if (!metValue) {
+    showToast('⚠️ Escribe o selecciona la métrica / unidad para este material');
+    if (inputMet) inputMet.focus();
+    return;
+  }
+
   try {
-    showToast('⏳ Guardando nuevo material...');
+    showToast('⏳ Guardando nuevo material y métrica en Base de Datos...');
     await SHEETS_API.addToBaseDatos({
-      material: value,
-      metric: row && row.unidad ? row.unidad : ''
+      material: matValue,
+      metric: metValue
     });
+
+    // Guardar en el mapa relacional y catálogos locales para reactividad inmediata
+    MATERIAL_METRICAS[matValue] = metValue;
+    if (!MATERIALES.includes(matValue)) MATERIALES.push(matValue);
+    if (!UNIDADES.includes(metValue)) UNIDADES.push(metValue);
+
     await refreshCatalogsAndApply();
-    if (currentRows[index]) currentRows[index].material = value;
+    if (currentRows[index]) {
+      currentRows[index].material = matValue;
+      currentRows[index].unidad = metValue;
+    }
     closeNewField(`newMaterialWrap-${index}`, `newMaterialInput-${index}`);
     renderRows();
-    showToast(`✅ Material "${value}" agregado exitosamente`);
+    showToast(`✅ Material "${matValue}" (${metValue}) agregado y seleccionado`);
     SYNC.refreshAfterWrite();
   } catch (e) {
     showToast(`❌ Error: ${e.message}`);
@@ -753,31 +877,6 @@ async function saveNewMaterial(index) {
 
 function cancelNewMaterial(index) {
   closeNewField(`newMaterialWrap-${index}`, `newMaterialInput-${index}`);
-}
-
-async function saveNewMetric(index) {
-  const input = document.getElementById(`newMetricInput-${index}`);
-  const value = input ? input.value.trim() : '';
-  if (!value) {
-    showToast('⚠️ Escribe el nombre de la métrica / unidad');
-    return;
-  }
-  try {
-    showToast('⏳ Guardando nueva métrica...');
-    await SHEETS_API.addToBaseDatos({ metric: value });
-    await refreshCatalogsAndApply();
-    if (currentRows[index]) currentRows[index].unidad = value;
-    closeNewField(`newMetricWrap-${index}`, `newMetricInput-${index}`);
-    renderRows();
-    showToast(`✅ Métrica "${value}" agregada exitosamente`);
-    SYNC.refreshAfterWrite();
-  } catch (e) {
-    showToast(`❌ Error: ${e.message}`);
-  }
-}
-
-function cancelNewMetric(index) {
-  closeNewField(`newMetricWrap-${index}`, `newMetricInput-${index}`);
 }
 
 // ============================================
@@ -1144,6 +1243,511 @@ function toggleTheme() {
   showToast(isDark ? '🌙 Modo Oscuro Activado' : '☀️ Modo Claro Activado', 2000);
 }
 
+// ============================================
+// GIMO • GESTIÓN DE PESTAÑAS, OBRA ACTIVA Y CONTROL EN SITIO
+// ============================================
+
+let currentMainTab = 'solicitudes';
+let currentMasterObra = '';
+let entradasObraData = [];
+let usosObraData = [];
+let currentEntradasFilter = 'todos';
+let currentUsosFilter = 'todos';
+
+function switchMainTab(tabName) {
+  currentMainTab = tabName;
+  const tabs = ['solicitudes', 'entradas', 'usos'];
+  
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tabBtn-${t}`);
+    const content = document.getElementById(`tabContent-${t}`);
+    const isActive = (t === tabName);
+
+    if (btn) {
+      if (isActive) {
+        btn.className = "flex-1 py-2.5 px-2.5 sm:px-4 rounded-xl font-label-md font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 bg-primary text-white shadow-sm text-xs sm:text-sm cursor-pointer";
+      } else {
+        btn.className = "flex-1 py-2.5 px-2.5 sm:px-4 rounded-xl font-label-md font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer";
+      }
+    }
+
+    if (content) {
+      if (isActive) {
+        content.classList.remove('hidden');
+      } else {
+        content.classList.add('hidden');
+      }
+    }
+  });
+
+  if (tabName === 'entradas') {
+    loadEntradasObra();
+  } else if (tabName === 'usos') {
+    loadUsosObra();
+  }
+}
+
+function onMasterObraChanged(obraVal) {
+  currentMasterObra = obraVal || '';
+  const label = document.getElementById('currentMasterObraLabel');
+  if (label) {
+    label.textContent = currentMasterObra ? currentMasterObra : 'Todas las Obras';
+  }
+
+  // Sincronizar con el selector de obra del formulario de solicitud si coincide
+  const obraSelect = document.getElementById('obraSelect');
+  if (obraSelect && currentMasterObra && obraSelect.value !== currentMasterObra) {
+    obraSelect.value = currentMasterObra;
+  }
+
+  // Actualizar indicadores de filtro
+  const indEntradas = document.getElementById('entradasObraIndicator');
+  if (indEntradas) indEntradas.textContent = `Obra: ${currentMasterObra || 'Todas'}`;
+
+  const indUsos = document.getElementById('usosObraIndicator');
+  if (indUsos) indUsos.textContent = `Obra: ${currentMasterObra || 'Todas'}`;
+
+  renderEntradasList();
+  renderUsosList();
+}
+
+// --- PESTAÑA 2: ENTRADA DE MATERIALES EN OBRA ---
+
+async function loadEntradasObra(forceFresh = false) {
+  const container = document.getElementById('entradasListContainer');
+  if (!container) return;
+
+  if (forceFresh) {
+    container.innerHTML = `
+      <div class="text-center py-8 text-on-surface-variant dark:text-slate-400 font-body-sm">
+        <span class="animate-spin h-6 w-6 border-2 border-primary dark:border-amber-400 border-t-transparent rounded-full inline-block mb-2"></span>
+        <p>Consultando despachos en Google Sheets...</p>
+      </div>`;
+    showToast('⏳ Actualizando despachos de obra...');
+  }
+
+  try {
+    let data;
+    if (forceFresh) {
+      await StorageService.removeCache('entradas_obra');
+      data = await SHEETS_API.fetchEntradasObra();
+    } else {
+      data = await SHEETS_API.getEntradasObra();
+    }
+
+    entradasObraData = Array.isArray(data) ? data : [];
+    updateEntradasBadges();
+    renderEntradasList();
+    if (forceFresh) showToast('✅ Despachos actualizados');
+  } catch (err) {
+    console.error('Error cargando entradas:', err);
+    container.innerHTML = `
+      <div class="text-center py-6 text-rose-500 font-body-sm">
+        <span class="material-symbols-outlined text-[28px] block mb-1">error</span>
+        <p>Error al cargar despachos: ${err.message}</p>
+        <button type="button" onclick="loadEntradasObra(true)" class="mt-2 px-3 py-1 bg-surface-container rounded-lg font-bold text-xs cursor-pointer">Reintentar</button>
+      </div>`;
+  }
+}
+
+function updateEntradasBadges() {
+  const pendingCount = entradasObraData.filter(item => !item.is_received).length;
+  const badge = document.getElementById('badgeEntradasPending');
+  if (badge) {
+    if (pendingCount > 0) {
+      badge.textContent = pendingCount;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  const countTodos = document.getElementById('countEntradasTodos');
+  const countPend = document.getElementById('countEntradasPendientes');
+  const countRec = document.getElementById('countEntradasRecibidos');
+  if (countTodos) countTodos.textContent = entradasObraData.length;
+  if (countPend) countPend.textContent = pendingCount;
+  if (countRec) countRec.textContent = entradasObraData.length - pendingCount;
+}
+
+function setEntradasFilter(filterType, btn) {
+  currentEntradasFilter = filterType;
+  document.querySelectorAll('.entradas-chip').forEach(b => {
+    b.className = "entradas-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer";
+  });
+  if (btn) {
+    btn.className = "entradas-chip px-3 py-1 rounded-full text-xs font-bold bg-primary dark:bg-amber-500 text-white dark:text-slate-950 shadow-sm cursor-pointer";
+  }
+  renderEntradasList();
+}
+
+function setRecibidoCompleto(rowNum, cantDespachada) {
+  const input = document.getElementById(`input-recibida-${rowNum}`);
+  if (input) {
+    input.value = cantDespachada;
+    input.classList.add('ring-2', 'ring-emerald-500');
+    setTimeout(() => input.classList.remove('ring-2', 'ring-emerald-500'), 800);
+  }
+}
+
+function renderEntradasList() {
+  const container = document.getElementById('entradasListContainer');
+  if (!container) return;
+
+  let items = [...entradasObraData];
+
+  // Filtro por Obra activa
+  if (currentMasterObra) {
+    items = items.filter(it => it.obra && it.obra.toLowerCase() === currentMasterObra.toLowerCase());
+  }
+
+  // Filtro por estado
+  if (currentEntradasFilter === 'pendientes') {
+    items = items.filter(it => !it.is_received);
+  } else if (currentEntradasFilter === 'recibidos') {
+    items = items.filter(it => it.is_received);
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-dashed border-slate-200 dark:border-slate-800 p-6 space-y-2">
+        <span class="material-symbols-outlined text-[36px] text-slate-400">inventory_2</span>
+        <h3 class="font-headline-md text-sm text-on-surface dark:text-slate-200 font-bold">No hay despachos para mostrar</h3>
+        <p class="font-body-sm text-on-surface-variant dark:text-slate-400 max-w-sm mx-auto">
+          ${currentMasterObra ? `No se encontraron registros de despachos dirigidos a "${currentMasterObra}".` : 'No hay despachos registrados o pendientes en las obras.'}
+        </p>
+      </div>`;
+    return;
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  container.innerHTML = items.map(item => {
+    const rowNum = item.row;
+    const isRec = item.is_received;
+    const defaultCant = (item.cant_recibida !== "" && item.cant_recibida !== null) ? item.cant_recibida : item.cant_despachada;
+    const defaultFecha = item.fecha ? item.fecha : todayStr;
+
+    return `
+      <div class="bg-surface-container-low dark:bg-[#0f172a] p-4 rounded-xl border ${isRec ? 'border-emerald-600/30 dark:border-emerald-500/20' : 'border-slate-200 dark:border-slate-800'} space-y-3 transition-all fade-in">
+        <div class="flex items-start justify-between gap-2 flex-wrap">
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded-md bg-primary/10 dark:bg-slate-800 text-primary dark:text-amber-400 font-mono font-bold text-xs">#${item.e_num || rowNum}</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-on-surface dark:text-slate-200 font-label-sm text-xs font-semibold">${item.obra}</span>
+              ${isRec 
+                ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-label-sm text-xs font-bold flex items-center gap-1">
+                     <span class="material-symbols-outlined text-[13px]">check_circle</span> Recibido (${item.cant_recibida} ${item.metrica})
+                   </span>` 
+                : `<span class="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-label-sm text-xs font-bold flex items-center gap-1">
+                     <span class="material-symbols-outlined text-[13px]">pending</span> Pendiente de Recepción
+                   </span>`}
+            </div>
+            <h3 class="font-headline-md text-base text-primary dark:text-white font-bold pt-1">${item.material}</h3>
+            <span class="font-label-sm text-on-surface-variant dark:text-slate-400">Unidad: <strong class="text-on-surface dark:text-slate-200">${item.metrica}</strong></span>
+          </div>
+
+          <div class="text-right sm:text-right">
+            <span class="text-xs text-on-surface-variant dark:text-slate-400 block font-medium">Despachado Almacén</span>
+            <span class="font-mono font-bold text-base text-primary dark:text-amber-400">${item.cant_despachada} ${item.metrica}</span>
+          </div>
+        </div>
+
+        <!-- Formulario de confirmación de recepción -->
+        <div class="pt-2 border-t border-slate-200/70 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+          <div class="sm:col-span-5 space-y-1">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300">Cantidad Recibida *</label>
+              <button type="button" onclick="setRecibidoCompleto(${rowNum}, ${item.cant_despachada})" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer">
+                Llegó completo (${item.cant_despachada})
+              </button>
+            </div>
+            <input type="number" step="any" min="0" id="input-recibida-${rowNum}" value="${defaultCant}" placeholder="Cant. real recibida" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-mono font-bold text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
+          </div>
+
+          <div class="sm:col-span-4 space-y-1">
+            <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300 block">Fecha Recepción *</label>
+            <input type="date" id="input-fecha-${rowNum}" value="${defaultFecha}" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
+          </div>
+
+          <div class="sm:col-span-3">
+            <button type="button" id="btn-save-entrada-${rowNum}" onclick="confirmEntradaObra(${rowNum})" class="w-full h-10 px-3 rounded-lg ${isRec ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-emerald-700 hover:bg-emerald-800 text-white'} font-label-sm font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+              <span class="material-symbols-outlined text-[16px]">${isRec ? 'edit' : 'check'}</span>
+              <span>${isRec ? 'Modificar' : 'Confirmar'}</span>
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function confirmEntradaObra(rowNum) {
+  const inputCant = document.getElementById(`input-recibida-${rowNum}`);
+  const inputFecha = document.getElementById(`input-fecha-${rowNum}`);
+  const btn = document.getElementById(`btn-save-entrada-${rowNum}`);
+
+  const cantVal = inputCant ? parseFloat(inputCant.value) : NaN;
+  const fechaVal = inputFecha ? inputFecha.value.trim() : '';
+
+  if (isNaN(cantVal) || cantVal < 0) {
+    showToast('⚠️ Ingresa una cantidad recibida válida');
+    if (inputCant) inputCant.focus();
+    return;
+  }
+  if (!fechaVal) {
+    showToast('⚠️ Selecciona la fecha de recepción');
+    if (inputFecha) inputFecha.focus();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full inline-block"></span> Guardando...`;
+  }
+
+  try {
+    showToast('⏳ Guardando recepción en Entrada_Materiales...');
+    await SHEETS_API.saveEntradaObra({
+      row: rowNum,
+      cant_recibida: cantVal,
+      fecha: fechaVal
+    });
+
+    // Actualizar estado en memoria local
+    const item = entradasObraData.find(it => it.row === rowNum);
+    if (item) {
+      item.cant_recibida = cantVal;
+      item.fecha = fechaVal;
+      item.is_received = true;
+    }
+
+    updateEntradasBadges();
+    renderEntradasList();
+    showToast(`✅ Recepción de fila #${rowNum} registrada en Google Sheets`);
+    
+    await StorageService.removeCache('entradas_obra');
+    await StorageService.removeCache('usos_obra');
+    SYNC.refreshAfterWrite();
+  } catch (err) {
+    showToast(`❌ Error al guardar: ${err.message}`);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">check</span> <span>Reintentar</span>`;
+    }
+  }
+}
+
+// --- PESTAÑA 3: USO DE MATERIALES EN OBRA ---
+
+async function loadUsosObra(forceFresh = false) {
+  const container = document.getElementById('usosListContainer');
+  if (!container) return;
+
+  if (forceFresh) {
+    container.innerHTML = `
+      <div class="text-center py-8 text-on-surface-variant dark:text-slate-400 font-body-sm">
+        <span class="animate-spin h-6 w-6 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full inline-block mb-2"></span>
+        <p>Consultando inventario de uso en Google Sheets...</p>
+      </div>`;
+    showToast('⏳ Actualizando consumos de obra...');
+  }
+
+  try {
+    let data;
+    if (forceFresh) {
+      await StorageService.removeCache('usos_obra');
+      data = await SHEETS_API.fetchUsosObra();
+    } else {
+      data = await SHEETS_API.getUsosObra();
+    }
+
+    usosObraData = Array.isArray(data) ? data : [];
+    updateUsosBadges();
+    renderUsosList();
+    if (forceFresh) showToast('✅ Registros de uso actualizados');
+  } catch (err) {
+    console.error('Error cargando usos:', err);
+    container.innerHTML = `
+      <div class="text-center py-6 text-rose-500 font-body-sm">
+        <span class="material-symbols-outlined text-[28px] block mb-1">error</span>
+        <p>Error al cargar registros: ${err.message}</p>
+        <button type="button" onclick="loadUsosObra(true)" class="mt-2 px-3 py-1 bg-surface-container rounded-lg font-bold text-xs cursor-pointer">Reintentar</button>
+      </div>`;
+  }
+}
+
+function updateUsosBadges() {
+  const pendingCount = usosObraData.filter(item => !item.is_used).length;
+  const badge = document.getElementById('badgeUsosPending');
+  if (badge) {
+    if (pendingCount > 0) {
+      badge.textContent = pendingCount;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  const countTodos = document.getElementById('countUsosTodos');
+  const countDisp = document.getElementById('countUsosDisponibles');
+  const countUsados = document.getElementById('countUsosUsados');
+  if (countTodos) countTodos.textContent = usosObraData.length;
+  if (countDisp) countDisp.textContent = pendingCount;
+  if (countUsados) countUsados.textContent = usosObraData.length - pendingCount;
+}
+
+function setUsosFilter(filterType, btn) {
+  currentUsosFilter = filterType;
+  document.querySelectorAll('.usos-chip').forEach(b => {
+    b.className = "usos-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer";
+  });
+  if (btn) {
+    btn.className = "usos-chip px-3 py-1 rounded-full text-xs font-bold bg-primary dark:bg-amber-500 text-white dark:text-slate-950 shadow-sm cursor-pointer";
+  }
+  renderUsosList();
+}
+
+function renderUsosList() {
+  const container = document.getElementById('usosListContainer');
+  if (!container) return;
+
+  let items = [...usosObraData];
+
+  // Filtro por Obra activa
+  if (currentMasterObra) {
+    items = items.filter(it => it.obra && it.obra.toLowerCase() === currentMasterObra.toLowerCase());
+  }
+
+  // Filtro por estado
+  if (currentUsosFilter === 'disponibles') {
+    items = items.filter(it => !it.is_used);
+  } else if (currentUsosFilter === 'usados') {
+    items = items.filter(it => it.is_used);
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-dashed border-slate-200 dark:border-slate-800 p-6 space-y-2">
+        <span class="material-symbols-outlined text-[36px] text-slate-400">handyman</span>
+        <h3 class="font-headline-md text-sm text-on-surface dark:text-slate-200 font-bold">No hay materiales para mostrar</h3>
+        <p class="font-body-sm text-on-surface-variant dark:text-slate-400 max-w-sm mx-auto">
+          ${currentMasterObra ? `No se encontraron materiales recibidos para registrar consumo en "${currentMasterObra}".` : 'No hay materiales disponibles para registro de uso en obra.'}
+        </p>
+      </div>`;
+    return;
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  container.innerHTML = items.map(item => {
+    const rowNum = item.row;
+    const isUsed = item.is_used;
+    const defaultCant = item.cant_usada !== "" && item.cant_usada !== null ? item.cant_usada : "";
+    const defaultFecha = item.fecha ? item.fecha : todayStr;
+
+    return `
+      <div class="bg-surface-container-low dark:bg-[#0f172a] p-4 rounded-xl border ${isUsed ? 'border-amber-600/30 dark:border-amber-500/20' : 'border-slate-200 dark:border-slate-800'} space-y-3 transition-all fade-in">
+        <div class="flex items-start justify-between gap-2 flex-wrap">
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded-md bg-amber-500/10 dark:bg-slate-800 text-amber-700 dark:text-amber-400 font-mono font-bold text-xs">#${item.u_num || rowNum}</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-on-surface dark:text-slate-200 font-label-sm text-xs font-semibold">${item.obra}</span>
+              ${isUsed 
+                ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-label-sm text-xs font-bold flex items-center gap-1">
+                     <span class="material-symbols-outlined text-[13px]">construction</span> Consumido: ${item.cant_usada} ${item.metrica}
+                   </span>` 
+                : `<span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-on-surface-variant dark:text-slate-300 font-label-sm text-xs font-semibold flex items-center gap-1">
+                     <span class="material-symbols-outlined text-[13px]">hourglass_empty</span> Sin consumo registrado
+                   </span>`}
+            </div>
+            <h3 class="font-headline-md text-base text-primary dark:text-white font-bold pt-1">${item.material}</h3>
+            <span class="font-label-sm text-on-surface-variant dark:text-slate-400">Unidad: <strong class="text-on-surface dark:text-slate-200">${item.metrica}</strong></span>
+          </div>
+
+          <div class="text-right sm:text-right">
+            <span class="text-xs text-on-surface-variant dark:text-slate-400 block font-medium">Recibido en Obra</span>
+            <span class="font-mono font-bold text-base text-emerald-700 dark:text-emerald-400">${item.cant_recibida} ${item.metrica}</span>
+          </div>
+        </div>
+
+        <!-- Formulario de registro de uso -->
+        <div class="pt-2 border-t border-slate-200/70 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+          <div class="sm:col-span-5 space-y-1">
+            <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300 block">Cantidad Usada / Consumida *</label>
+            <input type="number" step="any" min="0" id="input-usada-${rowNum}" value="${defaultCant}" placeholder="Ej: 5" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-mono font-bold text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+          </div>
+
+          <div class="sm:col-span-4 space-y-1">
+            <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300 block">Fecha de Uso *</label>
+            <input type="date" id="input-fecha-uso-${rowNum}" value="${defaultFecha}" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+          </div>
+
+          <div class="sm:col-span-3">
+            <button type="button" id="btn-save-uso-${rowNum}" onclick="confirmUsoObra(${rowNum})" class="w-full h-10 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white dark:text-slate-950 font-label-sm font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+              <span class="material-symbols-outlined text-[16px]">${isUsed ? 'edit' : 'save'}</span>
+              <span>${isUsed ? 'Actualizar' : 'Registrar Uso'}</span>
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function confirmUsoObra(rowNum) {
+  const inputCant = document.getElementById(`input-usada-${rowNum}`);
+  const inputFecha = document.getElementById(`input-fecha-uso-${rowNum}`);
+  const btn = document.getElementById(`btn-save-uso-${rowNum}`);
+
+  const cantVal = inputCant ? parseFloat(inputCant.value) : NaN;
+  const fechaVal = inputFecha ? inputFecha.value.trim() : '';
+
+  if (isNaN(cantVal) || cantVal < 0) {
+    showToast('⚠️ Ingresa una cantidad de uso válida');
+    if (inputCant) inputCant.focus();
+    return;
+  }
+  if (!fechaVal) {
+    showToast('⚠️ Selecciona la fecha de uso');
+    if (inputFecha) inputFecha.focus();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full inline-block"></span> Guardando...`;
+  }
+
+  try {
+    showToast('⏳ Guardando consumo en Salida_Materiales...');
+    await SHEETS_API.saveUsoObra({
+      row: rowNum,
+      cant_usada: cantVal,
+      fecha: fechaVal
+    });
+
+    // Actualizar estado en memoria local
+    const item = usosObraData.find(it => it.row === rowNum);
+    if (item) {
+      item.cant_usada = cantVal;
+      item.fecha = fechaVal;
+      item.is_used = true;
+    }
+
+    updateUsosBadges();
+    renderUsosList();
+    showToast(`✅ Uso en obra registrado en Google Sheets (fila #${rowNum})`);
+    
+    await StorageService.removeCache('usos_obra');
+    SYNC.refreshAfterWrite();
+  } catch (err) {
+    showToast(`❌ Error al guardar uso: ${err.message}`);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">save</span> <span>Reintentar</span>`;
+    }
+  }
+}
+
 // Inicializar al cargar el DOM
 document.addEventListener('DOMContentLoaded', initApp);
 
@@ -1181,5 +1785,16 @@ window.toggleTheme = toggleTheme;
 window.handlePhotoUpload = handlePhotoUpload;
 window.removePhoto = removePhoto;
 window.compressImage = compressImage;
+
+// Exportar funciones de GIMO (Pestañas, Filtros y Control en Obra)
+window.switchMainTab = switchMainTab;
+window.onMasterObraChanged = onMasterObraChanged;
+window.loadEntradasObra = loadEntradasObra;
+window.setEntradasFilter = setEntradasFilter;
+window.setRecibidoCompleto = setRecibidoCompleto;
+window.confirmEntradaObra = confirmEntradaObra;
+window.loadUsosObra = loadUsosObra;
+window.setUsosFilter = setUsosFilter;
+window.confirmUsoObra = confirmUsoObra;
 
 

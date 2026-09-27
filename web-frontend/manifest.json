@@ -1,8 +1,8 @@
 {
-  "name": "Control de Materiales - Industrial Precision",
-  "short_name": "CtrlMateriales",
-  "id": "/control-materiales-pwa",
-  "description": "Sistema de gestión de solicitudes de materiales de construcción con sincronización Google Sheets",
+  "name": "GIMO • Gestión Integral de Materiales en Obra",
+  "short_name": "GIMO",
+  "id": "/gimo-obra-pwa",
+  "description": "Sistema de gestión integral de materiales en obra: requisición, entradas y control de uso",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
