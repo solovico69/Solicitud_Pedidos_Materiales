@@ -1251,12 +1251,12 @@ let currentMainTab = 'solicitudes';
 let currentMasterObra = '';
 let entradasObraData = [];
 let usosObraData = [];
-let currentEntradasFilter = 'todos';
-let currentUsosFilter = 'todos';
+let historialSolicitudesData = [];
+let historialSearchQuery = '';
 
 function switchMainTab(tabName) {
   currentMainTab = tabName;
-  const tabs = ['solicitudes', 'entradas', 'usos'];
+  const tabs = ['solicitudes', 'entradas', 'usos', 'historial'];
   
   tabs.forEach(t => {
     const btn = document.getElementById(`tabBtn-${t}`);
@@ -1265,9 +1265,9 @@ function switchMainTab(tabName) {
 
     if (btn) {
       if (isActive) {
-        btn.className = "flex-1 py-2.5 px-2.5 sm:px-4 rounded-xl font-label-md font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 bg-primary text-white shadow-sm text-xs sm:text-sm cursor-pointer";
+        btn.className = "flex-1 py-2.5 px-2 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 bg-primary text-white shadow-sm text-xs sm:text-sm cursor-pointer";
       } else {
-        btn.className = "flex-1 py-2.5 px-2.5 sm:px-4 rounded-xl font-label-md font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer";
+        btn.className = "flex-1 py-2.5 px-2 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer";
       }
     }
 
@@ -1284,6 +1284,8 @@ function switchMainTab(tabName) {
     loadEntradasObra();
   } else if (tabName === 'usos') {
     loadUsosObra();
+  } else if (tabName === 'historial') {
+    loadHistorialSolicitudes();
   }
 }
 
@@ -1300,18 +1302,22 @@ function onMasterObraChanged(obraVal) {
     obraSelect.value = currentMasterObra;
   }
 
-  // Actualizar indicadores de filtro
+  // Actualizar indicadores de filtro por obra
   const indEntradas = document.getElementById('entradasObraIndicator');
   if (indEntradas) indEntradas.textContent = `Obra: ${currentMasterObra || 'Todas'}`;
 
   const indUsos = document.getElementById('usosObraIndicator');
   if (indUsos) indUsos.textContent = `Obra: ${currentMasterObra || 'Todas'}`;
 
+  const indHistorial = document.getElementById('historialObraIndicator');
+  if (indHistorial) indHistorial.textContent = `Obra: ${currentMasterObra || 'Todas'}`;
+
   renderEntradasList();
   renderUsosList();
+  renderHistorialSolicitudes();
 }
 
-// --- PESTAÑA 2: ENTRADA DE MATERIALES EN OBRA ---
+// --- PESTAÑA 2: ENTRADA DE MATERIALES EN OBRA (VISTA UNIFICADA) ---
 
 async function loadEntradasObra(forceFresh = false) {
   const container = document.getElementById('entradasListContainer');
@@ -1361,29 +1367,11 @@ function updateEntradasBadges() {
       badge.classList.add('hidden');
     }
   }
-
-  const countTodos = document.getElementById('countEntradasTodos');
-  const countPend = document.getElementById('countEntradasPendientes');
-  const countRec = document.getElementById('countEntradasRecibidos');
-  if (countTodos) countTodos.textContent = entradasObraData.length;
-  if (countPend) countPend.textContent = pendingCount;
-  if (countRec) countRec.textContent = entradasObraData.length - pendingCount;
-}
-
-function setEntradasFilter(filterType, btn) {
-  currentEntradasFilter = filterType;
-  document.querySelectorAll('.entradas-chip').forEach(b => {
-    b.className = "entradas-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer";
-  });
-  if (btn) {
-    btn.className = "entradas-chip px-3 py-1 rounded-full text-xs font-bold bg-primary dark:bg-amber-500 text-white dark:text-slate-950 shadow-sm cursor-pointer";
-  }
-  renderEntradasList();
 }
 
 function setRecibidoCompleto(rowNum, cantDespachada) {
   const input = document.getElementById(`input-recibida-${rowNum}`);
-  if (input) {
+  if (input && !input.disabled) {
     input.value = cantDespachada;
     input.classList.add('ring-2', 'ring-emerald-500');
     setTimeout(() => input.classList.remove('ring-2', 'ring-emerald-500'), 800);
@@ -1396,16 +1384,9 @@ function renderEntradasList() {
 
   let items = [...entradasObraData];
 
-  // Filtro por Obra activa
+  // Filtro por Obra activa seleccionada en cabecera
   if (currentMasterObra) {
     items = items.filter(it => it.obra && it.obra.toLowerCase() === currentMasterObra.toLowerCase());
-  }
-
-  // Filtro por estado
-  if (currentEntradasFilter === 'pendientes') {
-    items = items.filter(it => !it.is_received);
-  } else if (currentEntradasFilter === 'recibidos') {
-    items = items.filter(it => it.is_received);
   }
 
   if (items.length === 0) {
@@ -1424,9 +1405,10 @@ function renderEntradasList() {
 
   container.innerHTML = items.map(item => {
     const rowNum = item.row;
-    const isRec = item.is_received;
+    const isRec = Boolean(item.is_received);
     const defaultCant = (item.cant_recibida !== "" && item.cant_recibida !== null) ? item.cant_recibida : item.cant_despachada;
     const defaultFecha = item.fecha ? item.fecha : todayStr;
+    const folioSol = item.e_num_solicitud || '';
 
     return `
       <div class="bg-surface-container-low dark:bg-[#0f172a] p-4 rounded-xl border ${isRec ? 'border-emerald-600/30 dark:border-emerald-500/20' : 'border-slate-200 dark:border-slate-800'} space-y-3 transition-all fade-in">
@@ -1434,10 +1416,11 @@ function renderEntradasList() {
           <div class="space-y-0.5">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="px-2 py-0.5 rounded-md bg-primary/10 dark:bg-slate-800 text-primary dark:text-amber-400 font-mono font-bold text-xs">#${item.e_num || rowNum}</span>
+              ${folioSol ? `<span class="px-2 py-0.5 rounded-md bg-amber-500/15 dark:bg-amber-400/10 text-amber-800 dark:text-amber-300 font-mono font-bold text-xs">Solicitud: ${folioSol}</span>` : ''}
               <span class="px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-on-surface dark:text-slate-200 font-label-sm text-xs font-semibold">${item.obra}</span>
               ${isRec 
                 ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-label-sm text-xs font-bold flex items-center gap-1">
-                     <span class="material-symbols-outlined text-[13px]">check_circle</span> Recibido (${item.cant_recibida} ${item.metrica})
+                     <span class="material-symbols-outlined text-[13px]">lock</span> Recibido (${item.cant_recibida} ${item.metrica})
                    </span>` 
                 : `<span class="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-label-sm text-xs font-bold flex items-center gap-1">
                      <span class="material-symbols-outlined text-[13px]">pending</span> Pendiente de Recepción
@@ -1458,23 +1441,31 @@ function renderEntradasList() {
           <div class="sm:col-span-5 space-y-1">
             <div class="flex items-center justify-between">
               <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300">Cantidad Recibida *</label>
-              <button type="button" onclick="setRecibidoCompleto(${rowNum}, ${item.cant_despachada})" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer">
-                Llegó completo (${item.cant_despachada})
-              </button>
+              ${!isRec ? `
+                <button type="button" onclick="setRecibidoCompleto(${rowNum}, ${item.cant_despachada})" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer">
+                  Llegó completo (${item.cant_despachada})
+                </button>` : ''}
             </div>
-            <input type="number" step="any" min="0" id="input-recibida-${rowNum}" value="${defaultCant}" placeholder="Cant. real recibida" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-mono font-bold text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
+            <input type="number" step="any" min="0" id="input-recibida-${rowNum}" value="${defaultCant}" placeholder="Cant. real recibida" 
+              ${isRec ? 'disabled readonly class="w-full h-10 px-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-mono font-bold text-sm cursor-not-allowed opacity-85"' : 'class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-mono font-bold text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none"'} />
           </div>
 
           <div class="sm:col-span-4 space-y-1">
             <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300 block">Fecha Recepción *</label>
-            <input type="date" id="input-fecha-${rowNum}" value="${defaultFecha}" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
+            <input type="date" id="input-fecha-${rowNum}" value="${defaultFecha}" 
+              ${isRec ? 'disabled readonly class="w-full h-10 px-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-body-md text-sm cursor-not-allowed opacity-85"' : 'class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none"'} />
           </div>
 
           <div class="sm:col-span-3">
-            <button type="button" id="btn-save-entrada-${rowNum}" onclick="confirmEntradaObra(${rowNum})" class="w-full h-10 px-3 rounded-lg ${isRec ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-emerald-700 hover:bg-emerald-800 text-white'} font-label-sm font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-              <span class="material-symbols-outlined text-[16px]">${isRec ? 'edit' : 'check'}</span>
-              <span>${isRec ? 'Modificar' : 'Confirmar'}</span>
-            </button>
+            ${isRec ? `
+              <div class="w-full h-10 px-3 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-label-sm font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-not-allowed" title="Guardado en Google Sheets - No modificable">
+                <span class="material-symbols-outlined text-[16px]">lock</span>
+                <span>Guardado (Bloqueado)</span>
+              </div>` : `
+              <button type="button" id="btn-save-entrada-${rowNum}" onclick="confirmEntradaObra(${rowNum})" class="w-full h-10 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-label-sm font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-[16px]">check</span>
+                <span>Confirmar Recepción</span>
+              </button>`}
           </div>
         </div>
       </div>`;
@@ -1523,7 +1514,7 @@ async function confirmEntradaObra(rowNum) {
 
     updateEntradasBadges();
     renderEntradasList();
-    showToast(`✅ Recepción de fila #${rowNum} registrada en Google Sheets`);
+    showToast(`✅ Recepción de fila #${rowNum} registrada en Google Sheets y bloqueada`);
     
     await StorageService.removeCache('entradas_obra');
     await StorageService.removeCache('usos_obra');
@@ -1537,7 +1528,7 @@ async function confirmEntradaObra(rowNum) {
   }
 }
 
-// --- PESTAÑA 3: USO DE MATERIALES EN OBRA ---
+// --- PESTAÑA 3: USO DE MATERIALES EN OBRA (SIEMPRE RE-EDITABLE) ---
 
 async function loadUsosObra(forceFresh = false) {
   const container = document.getElementById('usosListContainer');
@@ -1587,24 +1578,6 @@ function updateUsosBadges() {
       badge.classList.add('hidden');
     }
   }
-
-  const countTodos = document.getElementById('countUsosTodos');
-  const countDisp = document.getElementById('countUsosDisponibles');
-  const countUsados = document.getElementById('countUsosUsados');
-  if (countTodos) countTodos.textContent = usosObraData.length;
-  if (countDisp) countDisp.textContent = pendingCount;
-  if (countUsados) countUsados.textContent = usosObraData.length - pendingCount;
-}
-
-function setUsosFilter(filterType, btn) {
-  currentUsosFilter = filterType;
-  document.querySelectorAll('.usos-chip').forEach(b => {
-    b.className = "usos-chip px-3 py-1 rounded-full text-xs font-semibold bg-surface-container-low dark:bg-slate-800 text-on-surface dark:text-slate-300 hover:bg-surface-container cursor-pointer";
-  });
-  if (btn) {
-    btn.className = "usos-chip px-3 py-1 rounded-full text-xs font-bold bg-primary dark:bg-amber-500 text-white dark:text-slate-950 shadow-sm cursor-pointer";
-  }
-  renderUsosList();
 }
 
 function renderUsosList() {
@@ -1613,16 +1586,9 @@ function renderUsosList() {
 
   let items = [...usosObraData];
 
-  // Filtro por Obra activa
+  // Filtro por Obra activa seleccionada en cabecera
   if (currentMasterObra) {
     items = items.filter(it => it.obra && it.obra.toLowerCase() === currentMasterObra.toLowerCase());
-  }
-
-  // Filtro por estado
-  if (currentUsosFilter === 'disponibles') {
-    items = items.filter(it => !it.is_used);
-  } else if (currentUsosFilter === 'usados') {
-    items = items.filter(it => it.is_used);
   }
 
   if (items.length === 0) {
@@ -1641,9 +1607,10 @@ function renderUsosList() {
 
   container.innerHTML = items.map(item => {
     const rowNum = item.row;
-    const isUsed = item.is_used;
+    const isUsed = Boolean(item.is_used);
     const defaultCant = item.cant_usada !== "" && item.cant_usada !== null ? item.cant_usada : "";
     const defaultFecha = item.fecha ? item.fecha : todayStr;
+    const folioSol = item.u_num_solicitud || '';
 
     return `
       <div class="bg-surface-container-low dark:bg-[#0f172a] p-4 rounded-xl border ${isUsed ? 'border-amber-600/30 dark:border-amber-500/20' : 'border-slate-200 dark:border-slate-800'} space-y-3 transition-all fade-in">
@@ -1651,6 +1618,7 @@ function renderUsosList() {
           <div class="space-y-0.5">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="px-2 py-0.5 rounded-md bg-amber-500/10 dark:bg-slate-800 text-amber-700 dark:text-amber-400 font-mono font-bold text-xs">#${item.u_num || rowNum}</span>
+              ${folioSol ? `<span class="px-2 py-0.5 rounded-md bg-amber-500/15 dark:bg-amber-400/10 text-amber-800 dark:text-amber-300 font-mono font-bold text-xs">Solicitud: ${folioSol}</span>` : ''}
               <span class="px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-on-surface dark:text-slate-200 font-label-sm text-xs font-semibold">${item.obra}</span>
               ${isUsed 
                 ? `<span class="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-label-sm text-xs font-bold flex items-center gap-1">
@@ -1670,7 +1638,7 @@ function renderUsosList() {
           </div>
         </div>
 
-        <!-- Formulario de registro de uso -->
+        <!-- Formulario de registro de uso (Permite edición continua) -->
         <div class="pt-2 border-t border-slate-200/70 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
           <div class="sm:col-span-5 space-y-1">
             <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300 block">Cantidad Usada / Consumida *</label>
@@ -1685,7 +1653,7 @@ function renderUsosList() {
           <div class="sm:col-span-3">
             <button type="button" id="btn-save-uso-${rowNum}" onclick="confirmUsoObra(${rowNum})" class="w-full h-10 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white dark:text-slate-950 font-label-sm font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
               <span class="material-symbols-outlined text-[16px]">${isUsed ? 'edit' : 'save'}</span>
-              <span>${isUsed ? 'Actualizar' : 'Registrar Uso'}</span>
+              <span>${isUsed ? 'Actualizar Uso' : 'Registrar Uso'}</span>
             </button>
           </div>
         </div>
@@ -1738,6 +1706,7 @@ async function confirmUsoObra(rowNum) {
     showToast(`✅ Uso en obra registrado en Google Sheets (fila #${rowNum})`);
     
     await StorageService.removeCache('usos_obra');
+    await StorageService.removeCache('solicitudes'); // Salida afecta fórmula ACCION en Solicitudes
     SYNC.refreshAfterWrite();
   } catch (err) {
     showToast(`❌ Error al guardar uso: ${err.message}`);
@@ -1746,6 +1715,214 @@ async function confirmUsoObra(rowNum) {
       btn.innerHTML = `<span class="material-symbols-outlined text-[16px]">save</span> <span>Reintentar</span>`;
     }
   }
+}
+
+// --- PESTAÑA 4: HISTORIAL DE SOLICITUDES (CONDICIONADO POR ACCION) ---
+
+async function loadHistorialSolicitudes(forceFresh = false) {
+  const container = document.getElementById('historialListContainer');
+  if (!container) return;
+
+  if (forceFresh) {
+    container.innerHTML = `
+      <div class="text-center py-8 text-on-surface-variant dark:text-slate-400 font-body-sm">
+        <span class="animate-spin h-6 w-6 border-2 border-primary dark:border-amber-400 border-t-transparent rounded-full inline-block mb-2"></span>
+        <p>Consultando historial de solicitudes en Google Sheets...</p>
+      </div>`;
+    showToast('⏳ Actualizando historial de solicitudes...');
+  }
+
+  try {
+    let data;
+    if (forceFresh) {
+      await StorageService.removeCache('solicitudes');
+      data = await SHEETS_API.fetchSolicitudes();
+    } else {
+      data = await SHEETS_API.getSolicitudes();
+    }
+
+    historialSolicitudesData = Array.isArray(data) ? data : [];
+    renderHistorialSolicitudes();
+    if (forceFresh) showToast('✅ Historial de solicitudes actualizado');
+  } catch (err) {
+    console.error('Error cargando historial:', err);
+    container.innerHTML = `
+      <div class="text-center py-6 text-rose-500 font-body-sm">
+        <span class="material-symbols-outlined text-[28px] block mb-1">error</span>
+        <p>Error al cargar el historial: ${err.message}</p>
+        <button type="button" onclick="loadHistorialSolicitudes(true)" class="mt-2 px-3 py-1 bg-surface-container rounded-lg font-bold text-xs cursor-pointer">Reintentar</button>
+      </div>`;
+  }
+}
+
+function filterHistorialSolicitudes(query) {
+  historialSearchQuery = String(query || '').trim().toLowerCase();
+  renderHistorialSolicitudes();
+}
+
+function renderHistorialSolicitudes() {
+  const container = document.getElementById('historialListContainer');
+  if (!container) return;
+
+  let items = [...historialSolicitudesData];
+
+  // 1. Filtrar por Obra seleccionada en cabecera
+  if (currentMasterObra) {
+    items = items.filter(it => {
+      const obr = String(it['OBRA'] || '').trim().toLowerCase();
+      return obr === currentMasterObra.toLowerCase();
+    });
+  }
+
+  // 2. Condición clave sobre ACCION:
+  // "Aca no mostrar lo que ya fue Despachado pero si lo demas, segun la Obra selecionada en la cabecera."
+  items = items.filter(it => {
+    const accion = String(it['ACCION'] || '').trim().toLowerCase();
+    // Excluir si ya fue despachado/ejecutado
+    if (accion.includes('despachado') && !accion.includes('pendiente')) {
+      return false;
+    }
+    return true;
+  });
+
+  // 3. Filtrar por texto de búsqueda rápida (folio, material, solicitante, sector)
+  if (historialSearchQuery) {
+    items = items.filter(it => {
+      const folio = String(it['N# SOLICITUD'] || it['N#'] || '').toLowerCase();
+      const mat = String(it['MATERIAL'] || '').toLowerCase();
+      const sol = String(it['SOLICITANTE'] || '').toLowerCase();
+      const sec = String(it['SECTOR DE LA OBRA'] || '').toLowerCase();
+      return folio.includes(historialSearchQuery) ||
+             mat.includes(historialSearchQuery) ||
+             sol.includes(historialSearchQuery) ||
+             sec.includes(historialSearchQuery);
+    });
+  }
+
+  // Actualizar indicadores
+  const countIndicator = document.getElementById('historialCountIndicator');
+  if (countIndicator) {
+    countIndicator.textContent = `${items.length} solicitud${items.length === 1 ? '' : 'es'}`;
+  }
+  const badgeCount = document.getElementById('badgeHistorialCount');
+  if (badgeCount) {
+    if (items.length > 0) {
+      badgeCount.textContent = items.length;
+      badgeCount.classList.remove('hidden');
+    } else {
+      badgeCount.classList.add('hidden');
+    }
+  }
+
+  const indHistorial = document.getElementById('historialObraIndicator');
+  if (indHistorial) {
+    indHistorial.textContent = `Obra: ${currentMasterObra || 'Todas'}`;
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-dashed border-slate-200 dark:border-slate-800 p-6 space-y-2">
+        <span class="material-symbols-outlined text-[36px] text-slate-400">filter_list_off</span>
+        <h3 class="font-headline-md text-sm text-on-surface dark:text-slate-200 font-bold">No hay solicitudes pendientes</h3>
+        <p class="font-body-sm text-on-surface-variant dark:text-slate-400 max-w-sm mx-auto">
+          ${currentMasterObra 
+            ? `No hay solicitudes activas pendientes de despacho para "${currentMasterObra}".` 
+            : 'No se encontraron solicitudes pendientes (o todas las registradas ya fueron despachadas).'}
+        </p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(item => {
+    const folio = item['N# SOLICITUD'] || `N# ${item['N#'] || item._rowIndex || '--'}`;
+    const fecha = item['FECHA'] || '--';
+    const solicitante = item['SOLICITANTE'] || '--';
+    const obra = item['OBRA'] || '--';
+    const sector = item['SECTOR DE LA OBRA'] || '';
+    const material = item['MATERIAL'] || '--';
+    const metrica = item['METRICA'] || '';
+    const cantidad = item['CANTIDAD'] || '0';
+    const aprobado = String(item['APROBADO'] || '').trim();
+    const observacion = item['OBSERVACION POR ITEM'] || '';
+    const tieneFotos = item['TIENE_FOTOS'] === true || String(item['TIENE_FOTOS']).toLowerCase() === 'true';
+    const accion = String(item['ACCION'] || '').trim();
+
+    // Badge para Estado de Aprobación
+    let aprobadoBadge = '';
+    const apLower = aprobado.toLowerCase();
+    if (apLower === 'aprobado') {
+      aprobadoBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-label-sm text-xs font-bold flex items-center gap-1">
+        <span class="material-symbols-outlined text-[13px]">check_circle</span> Aprobado
+      </span>`;
+    } else if (apLower === 'rechazado') {
+      aprobadoBadge = `<span class="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 font-label-sm text-xs font-bold flex items-center gap-1">
+        <span class="material-symbols-outlined text-[13px]">cancel</span> Rechazado
+      </span>`;
+    } else {
+      aprobadoBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-label-sm text-xs font-bold flex items-center gap-1">
+        <span class="material-symbols-outlined text-[13px]">schedule</span> Pendiente
+      </span>`;
+    }
+
+    // Badge para Columna ACCION
+    let accionBadge = '';
+    const acLower = accion.toLowerCase();
+    if (acLower.includes('pendiente')) {
+      accionBadge = `<span class="px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-label-sm text-xs font-bold flex items-center gap-1 border border-indigo-200 dark:border-indigo-800">
+        <span class="material-symbols-outlined text-[14px]">local_shipping</span> ${accion}
+      </span>`;
+    } else if (acLower.includes('rechazado')) {
+      accionBadge = `<span class="px-2.5 py-1 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-label-sm text-xs font-bold flex items-center gap-1 border border-rose-200 dark:border-rose-800">
+        <span class="material-symbols-outlined text-[14px]">block</span> ${accion}
+      </span>`;
+    } else if (accion) {
+      accionBadge = `<span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-label-sm text-xs font-semibold border border-slate-200 dark:border-slate-700">
+        ${accion}
+      </span>`;
+    } else {
+      accionBadge = `<span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-label-sm text-xs">
+        En Evaluación
+      </span>`;
+    }
+
+    return `
+      <div class="bg-surface-container-low dark:bg-[#0f172a] p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3 transition-all fade-in">
+        <div class="flex items-start justify-between gap-2 flex-wrap">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded-md bg-primary/10 dark:bg-amber-400/10 text-primary dark:text-amber-400 font-mono font-bold text-xs">
+                ${folio}
+              </span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-on-surface dark:text-slate-200 font-label-sm text-xs font-semibold">
+                ${obra}
+              </span>
+              ${sector ? `<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-on-surface-variant dark:text-slate-400 text-xs">${sector}</span>` : ''}
+              ${aprobadoBadge}
+            </div>
+            <h3 class="font-headline-md text-base text-primary dark:text-white font-bold pt-0.5">${material}</h3>
+            <div class="flex items-center gap-3 text-xs text-on-surface-variant dark:text-slate-400 flex-wrap">
+              <span>Solicitante: <strong class="text-on-surface dark:text-slate-200">${solicitante}</strong></span>
+              <span>•</span>
+              <span>Fecha: <strong class="text-on-surface dark:text-slate-200 font-mono">${fecha}</strong></span>
+              ${tieneFotos ? `<span class="inline-flex items-center gap-0.5 text-primary dark:text-amber-400 font-semibold"><span class="material-symbols-outlined text-[13px]">photo_camera</span> Fotos</span>` : ''}
+            </div>
+          </div>
+
+          <div class="text-right sm:text-right shrink-0">
+            <span class="text-xs text-on-surface-variant dark:text-slate-400 block font-medium">Cantidad Solicitada</span>
+            <span class="font-mono font-bold text-lg text-primary dark:text-amber-400">${cantidad} <span class="text-xs font-normal">${metrica}</span></span>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-on-surface-variant dark:text-slate-400 font-medium">Acción Almacén / Estado:</span>
+            ${accionBadge}
+          </div>
+          ${observacion ? `<div class="text-xs text-on-surface-variant dark:text-slate-400 italic max-w-md truncate" title="${observacion}">Obs: "${observacion}"</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // Inicializar al cargar el DOM
@@ -1786,15 +1963,16 @@ window.handlePhotoUpload = handlePhotoUpload;
 window.removePhoto = removePhoto;
 window.compressImage = compressImage;
 
-// Exportar funciones de GIMO (Pestañas, Filtros y Control en Obra)
+// Exportar funciones de GIMO (Pestañas, Control en Obra e Historial)
 window.switchMainTab = switchMainTab;
 window.onMasterObraChanged = onMasterObraChanged;
 window.loadEntradasObra = loadEntradasObra;
-window.setEntradasFilter = setEntradasFilter;
 window.setRecibidoCompleto = setRecibidoCompleto;
 window.confirmEntradaObra = confirmEntradaObra;
 window.loadUsosObra = loadUsosObra;
-window.setUsosFilter = setUsosFilter;
 window.confirmUsoObra = confirmUsoObra;
+window.loadHistorialSolicitudes = loadHistorialSolicitudes;
+window.filterHistorialSolicitudes = filterHistorialSolicitudes;
+window.renderHistorialSolicitudes = renderHistorialSolicitudes;
 
 

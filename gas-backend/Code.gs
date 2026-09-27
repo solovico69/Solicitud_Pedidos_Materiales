@@ -52,10 +52,12 @@ const EXPECTED_HEADERS = {
     "FECHA APROBADO",
     "OBSERVACION POR ITEM",
     "TIENE_FOTOS",
+    "ACCION",
   ],
   [SHEET_NAMES.ENTRADA]: ["N#", "MATERIAL", "METRICA", "CANTIDAD", "FECHA"],
   [SHEET_NAMES.SALIDA]: [
     "N#",
+    "N# SOLICITUD",
     "OBRA",
     "MATERIAL",
     "METRICA",
@@ -79,7 +81,7 @@ const EXPECTED_HEADERS = {
 
 // Columnas formuladas protegidas (NUNCA sobrescribir por protocolo)
 const PROTECTED_FORMULA_COLUMNS = {
-  [SHEET_NAMES.SOLICITUDES]: ["N#", "N# SOLICITUD", "METRICA"],
+  [SHEET_NAMES.SOLICITUDES]: ["N#", "N# SOLICITUD", "METRICA", "ACCION"],
   [SHEET_NAMES.ENTRADA]: ["N#"],
   [SHEET_NAMES.SALIDA]: ["N#"],
   [SHEET_NAMES.INVENTARIO]: [
@@ -321,8 +323,8 @@ function ensureFormulasPropagated_(sheet, targetRow, protectedHeaders) {
   if (targetRow <= headerRow + 1) return; // Primera fila de datos
 
   protectedHeaders.forEach((hName) => {
-    // Si la columna es METRICA, está gobernada por ARRAYFORMULA en la cabecera/fila 2; no propagar celda a celda
-    if (hName === "METRICA") return;
+    // Si la columna es METRICA o ACCION, están gobernadas por ARRAYFORMULA/MAP en la fila 2; no propagar celda a celda
+    if (hName === "METRICA" || hName === "ACCION") return;
 
     const colIdx = getColumnIndexSafe_(sheet.getName(), hName);
     if (!colIdx) return;
@@ -481,21 +483,21 @@ function updateAprobaciones_(items) {
 
 /**
  * Obtiene las partidas de "ENTRADA DE MATERIALES EN OBRAS" desde la hoja Entrada_Materiales.
- * Columnas H:N (Cols 8 a 14), comenzando en fila 4.
- * Omite escribir en H..L (columnas formuladas).
+ * Columnas H:O (Cols 8 a 15), comenzando en fila 4.
+ * Omite escribir en H..M (columnas formuladas E_N#, E_N#_SOLICITUD, E_OBRA, E_MATERIAL, E_METRICA, E_CANTIDAD).
  */
 function getEntradasObra_() {
   const sheet = getSheet_(SHEET_NAMES.ENTRADA);
   const lastRow = sheet.getLastRow();
   if (lastRow < 4) return [];
 
-  // Rango H4:N{lastRow} -> 7 columnas
-  const values = sheet.getRange(4, 8, lastRow - 3, 7).getValues();
+  // Rango H4:O{lastRow} -> 8 columnas
+  const values = sheet.getRange(4, 8, lastRow - 3, 8).getValues();
   const results = [];
 
   for (let i = 0; i < values.length; i++) {
     const rowNum = 4 + i;
-    const [eNum, obra, material, metrica, cantDespachada, cantRecibida, fecha] = values[i];
+    const [eNum, eNumSol, obra, material, metrica, cantDespachada, cantRecibida, fecha] = values[i];
     if (!material || String(material).trim() === "") continue;
 
     let fechaStr = "";
@@ -512,6 +514,7 @@ function getEntradasObra_() {
     results.push({
       row: rowNum,
       e_num: eNum !== "" ? eNum : rowNum - 3,
+      e_num_solicitud: eNumSol !== "" && eNumSol !== null && eNumSol !== undefined ? String(eNumSol).trim() : "",
       obra: String(obra || "").trim(),
       material: String(material || "").trim(),
       metrica: String(metrica || "").trim(),
@@ -527,8 +530,8 @@ function getEntradasObra_() {
 
 /**
  * Guarda la confirmación de recepción en la tabla "ENTRADA DE MATERIALES EN OBRAS".
- * Modifica ÚNICAMENTE las columnas 13 (CANT_RECIBIDA) y 14 (E_FECHA).
- * NUNCA toca las columnas formuladas 8 a 12 (E_N#, E_OBRA, E_MATERIAL, E_METRICA, E_CANTIDAD).
+ * Modifica ÚNICAMENTE las columnas 14 (CANT_RECIBIDA) y 15 (E_FECHA).
+ * NUNCA toca las columnas formuladas 8 a 13 (E_N#, E_N#_SOLICITUD, E_OBRA, E_MATERIAL, E_METRICA, E_CANTIDAD).
  */
 function saveEntradaObra_(data) {
   const row = parseInt(data.row, 10);
@@ -540,9 +543,9 @@ function saveEntradaObra_(data) {
   const cantRecibida = data.cant_recibida !== undefined && data.cant_recibida !== null ? data.cant_recibida : "";
   const fecha = data.fecha ? String(data.fecha).trim() : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT-4", "yyyy-MM-dd");
 
-  // Columna 13 = M (CANT_RECIBIDA), Columna 14 = N (E_FECHA)
-  sheet.getRange(row, 13).setValue(cantRecibida !== "" ? Number(cantRecibida) : "");
-  sheet.getRange(row, 14).setValue(fecha);
+  // Columna 14 = N (CANT_RECIBIDA), Columna 15 = O (E_FECHA)
+  sheet.getRange(row, 14).setValue(cantRecibida !== "" ? Number(cantRecibida) : "");
+  sheet.getRange(row, 15).setValue(fecha);
   SpreadsheetApp.flush();
 
   return {
@@ -556,20 +559,21 @@ function saveEntradaObra_(data) {
 
 /**
  * Obtiene los registros de "USO DE MATERIALES EN OBRA" desde la hoja Salida_Materiales.
- * Columnas I:O (Cols 9 a 15), comenzando en fila 4.
+ * Columnas J:Q (Cols 10 a 17), comenzando en fila 4.
+ * Omite escribir en J..O (columnas formuladas U_N#, U_N#_SOLICITUD, U_OBRA, U_MATERIAL, U_METRICA, U_CANT_RECIBIDA).
  */
 function getUsosObra_() {
   const sheet = getSheet_(SHEET_NAMES.SALIDA);
   const lastRow = sheet.getLastRow();
   if (lastRow < 4) return [];
 
-  // Rango I4:O{lastRow} -> 7 columnas
-  const values = sheet.getRange(4, 9, lastRow - 3, 7).getValues();
+  // Rango J4:Q{lastRow} -> 8 columnas
+  const values = sheet.getRange(4, 10, lastRow - 3, 8).getValues();
   const results = [];
 
   for (let i = 0; i < values.length; i++) {
     const rowNum = 4 + i;
-    const [uNum, obra, material, metrica, cantRecibida, cantUsada, fecha] = values[i];
+    const [uNum, uNumSol, obra, material, metrica, cantRecibida, cantUsada, fecha] = values[i];
     if (!material || String(material).trim() === "") continue;
 
     let fechaStr = "";
@@ -586,6 +590,7 @@ function getUsosObra_() {
     results.push({
       row: rowNum,
       u_num: uNum !== "" ? uNum : rowNum - 3,
+      u_num_solicitud: uNumSol !== "" && uNumSol !== null && uNumSol !== undefined ? String(uNumSol).trim() : "",
       obra: String(obra || "").trim(),
       material: String(material || "").trim(),
       metrica: String(metrica || "").trim(),
@@ -601,8 +606,8 @@ function getUsosObra_() {
 
 /**
  * Guarda el registro de uso en la tabla "USO DE MATERIALES EN OBRA".
- * Modifica ÚNICAMENTE las columnas 14 (CANT_USADA) y 15 (U_FECHA).
- * NUNCA toca las columnas formuladas 9 a 13 (U_N#, U_OBRA, U_MATERIAL, U_METRICA, U_CANT_RECIBIDA).
+ * Modifica ÚNICAMENTE las columnas 16 (CANT_USADA) y 17 (U_FECHA).
+ * NUNCA toca las columnas formuladas 10 a 15 (U_N#, U_N#_SOLICITUD, U_OBRA, U_MATERIAL, U_METRICA, U_CANT_RECIBIDA).
  */
 function saveUsoObra_(data) {
   const row = parseInt(data.row, 10);
@@ -614,9 +619,9 @@ function saveUsoObra_(data) {
   const cantUsada = data.cant_usada !== undefined && data.cant_usada !== null ? data.cant_usada : "";
   const fecha = data.fecha ? String(data.fecha).trim() : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT-4", "yyyy-MM-dd");
 
-  // Columna 14 = N (CANT_USADA), Columna 15 = O (U_FECHA)
-  sheet.getRange(row, 14).setValue(cantUsada !== "" ? Number(cantUsada) : "");
-  sheet.getRange(row, 15).setValue(fecha);
+  // Columna 16 = P (CANT_USADA), Columna 17 = Q (U_FECHA)
+  sheet.getRange(row, 16).setValue(cantUsada !== "" ? Number(cantUsada) : "");
+  sheet.getRange(row, 17).setValue(fecha);
   SpreadsheetApp.flush();
 
   return {
