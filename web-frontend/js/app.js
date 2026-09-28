@@ -245,13 +245,17 @@ async function loadAppData() {
 function populateDropdowns(baseDatos) {
   if (!baseDatos) return;
 
-  // 1. Ingenieros / Solicitantes
-  const profesionalList = document.getElementById('profesionalesList');
-  if (profesionalList && Array.isArray(baseDatos.ingenieros)) {
-    profesionalList.innerHTML = baseDatos.ingenieros
-      .filter(v => v && String(v).trim())
-      .map(name => `<option value="${name}">${name}</option>`)
-      .join('');
+  // 1. Ingenieros / Solicitantes (Select nativo idéntico al selector de Obra)
+  const profesionalSelect = document.getElementById('profesionalInput');
+  if (profesionalSelect && Array.isArray(baseDatos.ingenieros)) {
+    const currentVal = profesionalSelect.value;
+    const validIngs = baseDatos.ingenieros.filter(v => v && String(v).trim());
+    profesionalSelect.innerHTML = '<option disabled selected value="">Seleccione profesional responsable...</option>' +
+      validIngs.map(name => `<option value="${name}">${name}</option>`).join('') +
+      '<option value="__new_engineer__">➕ Nuevo profesional…</option>';
+    if (currentVal && validIngs.includes(currentVal)) {
+      profesionalSelect.value = currentVal;
+    }
   }
 
   // 2. Obras
@@ -1000,6 +1004,14 @@ function closeModal() {
   modal.classList.remove('opacity-100');
   content.classList.add('translate-y-8');
   content.classList.remove('translate-y-0');
+}
+
+function onResponsableChanged(value) {
+  if (value === '__new_engineer__') {
+    const select = document.getElementById('profesionalInput');
+    if (select) select.value = '';
+    showAddEngineerForm();
+  }
 }
 
 function showAddEngineerForm() {
@@ -2040,5 +2052,6 @@ window.confirmUsoObra = confirmUsoObra;
 window.loadHistorialSolicitudes = loadHistorialSolicitudes;
 window.filterHistorialSolicitudes = filterHistorialSolicitudes;
 window.renderHistorialSolicitudes = renderHistorialSolicitudes;
+window.onResponsableChanged = onResponsableChanged;
 
 

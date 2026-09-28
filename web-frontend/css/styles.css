@@ -37,6 +37,15 @@
   background: rgba(100, 116, 139, 0.5);
 }
 
+/* Ocultar barra de scroll para contenedores táctiles manteniendo el desplazamiento */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Áreas seguras en dispositivos móviles */
 .pb-safe {
   padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));

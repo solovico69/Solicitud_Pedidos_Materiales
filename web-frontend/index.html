@@ -167,24 +167,24 @@
   </div>
 
   <!-- NAVEGACIÓN CORPORATIVA POR PESTAÑAS (SEGMENTED TABS) -->
-  <nav class="max-w-4xl mx-auto px-4 mt-3" aria-label="Navegación de Secciones">
-    <div class="bg-surface-container-low dark:bg-[#1e293b] p-1.5 rounded-2xl flex items-center gap-1.5 shadow-sm border border-slate-200/80 dark:border-slate-800">
-      <button id="tabBtn-solicitudes" onclick="switchMainTab('solicitudes')" type="button" class="flex-1 py-2.5 px-2 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 bg-primary text-white shadow-sm text-xs sm:text-sm cursor-pointer">
-        <span class="material-symbols-outlined text-[18px]">assignment_add</span>
+  <nav class="max-w-4xl mx-auto px-2 sm:px-4 mt-3" aria-label="Navegación de Secciones">
+    <div class="bg-surface-container-low dark:bg-[#1e293b] p-1 sm:p-1.5 rounded-2xl flex items-center gap-1 sm:gap-1.5 shadow-sm border border-slate-200/80 dark:border-slate-800 overflow-x-auto no-scrollbar">
+      <button id="tabBtn-solicitudes" onclick="switchMainTab('solicitudes')" type="button" class="flex-1 min-w-[78px] sm:min-w-0 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 bg-primary text-white shadow-sm text-xs sm:text-sm cursor-pointer shrink-0 sm:shrink whitespace-nowrap">
+        <span class="material-symbols-outlined text-[17px] sm:text-[18px]">assignment_add</span>
         <span>Solicitud</span>
       </button>
-      <button id="tabBtn-entradas" onclick="switchMainTab('entradas')" type="button" class="flex-1 py-2.5 px-2 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer">
-        <span class="material-symbols-outlined text-[18px]">local_shipping</span>
+      <button id="tabBtn-entradas" onclick="switchMainTab('entradas')" type="button" class="flex-1 min-w-[78px] sm:min-w-0 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer shrink-0 sm:shrink whitespace-nowrap">
+        <span class="material-symbols-outlined text-[17px] sm:text-[18px]">local_shipping</span>
         <span>Entrada</span>
         <span id="badgeEntradasPending" class="hidden px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[10px] font-mono">0</span>
       </button>
-      <button id="tabBtn-usos" onclick="switchMainTab('usos')" type="button" class="flex-1 py-2.5 px-2 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer">
-        <span class="material-symbols-outlined text-[18px]">construction</span>
+      <button id="tabBtn-usos" onclick="switchMainTab('usos')" type="button" class="flex-1 min-w-[78px] sm:min-w-0 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer shrink-0 sm:shrink whitespace-nowrap">
+        <span class="material-symbols-outlined text-[17px] sm:text-[18px]">construction</span>
         <span>Uso</span>
         <span id="badgeUsosPending" class="hidden px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[10px] font-mono">0</span>
       </button>
-      <button id="tabBtn-historial" onclick="switchMainTab('historial')" type="button" class="flex-1 py-2.5 px-2 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer">
-        <span class="material-symbols-outlined text-[18px]">history_edu</span>
+      <button id="tabBtn-historial" onclick="switchMainTab('historial')" type="button" class="flex-1 min-w-[82px] sm:min-w-0 py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl font-label-md font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all duration-200 text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-slate-100 hover:bg-surface-container dark:hover:bg-slate-800 text-xs sm:text-sm cursor-pointer shrink-0 sm:shrink whitespace-nowrap">
+        <span class="material-symbols-outlined text-[17px] sm:text-[18px]">history_edu</span>
         <span>Historial</span>
         <span id="badgeHistorialCount" class="hidden px-1.5 py-0.2 rounded-full bg-primary dark:bg-amber-500 text-white dark:text-slate-950 text-[10px] font-mono">0</span>
       </button>
@@ -224,8 +224,10 @@
           Responsable de Solicitud (Arquitecto / Ingeniero) *
         </label>
         <div class="relative">
-          <input class="w-full h-11 pl-3.5 pr-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 transition-all placeholder:text-outline dark:placeholder:text-slate-500" id="profesionalInput" list="profesionalesList" placeholder="Escriba o seleccione profesional..." required autocomplete="off">
-          <datalist id="profesionalesList"></datalist>
+          <select class="w-full h-11 pl-3.5 pr-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-amber-500 transition-all appearance-none cursor-pointer" id="profesionalInput" required onchange="onResponsableChanged(this.value)">
+            <option disabled selected value="">Seleccione profesional responsable...</option>
+            <option value="__new_engineer__">➕ Nuevo profesional…</option>
+          </select>
           <span class="material-symbols-outlined text-outline dark:text-slate-400 absolute right-3 top-2.5 text-[20px] pointer-events-none">expand_more</span>
         </div>
         <button type="button" onclick="showAddEngineerForm()" class="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-label-sm font-semibold hover:underline pt-0.5">
@@ -293,24 +295,24 @@
     </section>
 
     <!-- RESUMEN FLOTANTE AL PIE & GUARDADO -->
-    <section class="bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-4 shadow-lg border border-slate-200/90 dark:border-slate-700 space-y-3 sticky bottom-4 z-40 fade-in" aria-label="Resumen y Guardado">
-      <div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-slate-200/60 dark:border-slate-800">
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary dark:text-amber-400 text-[20px]">fact_check</span>
-          <span class="font-body-sm text-on-surface dark:text-slate-300">Resumen:</span>
-          <div class="bg-primary/10 dark:bg-slate-800 text-primary dark:text-amber-400 px-2.5 py-0.5 rounded-full font-label-sm font-bold ml-1">
+    <section class="bg-surface-container-lowest/95 dark:bg-[#1e293b]/95 backdrop-blur-md rounded-2xl p-3 sm:p-4 shadow-lg border border-slate-200/90 dark:border-slate-700 space-y-2 sm:space-y-3 sticky bottom-3 sm:bottom-4 z-40 fade-in" aria-label="Resumen y Guardado">
+      <div class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-slate-200/60 dark:border-slate-800">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <span class="material-symbols-outlined text-primary dark:text-amber-400 text-[18px] sm:text-[20px]">fact_check</span>
+          <span class="font-body-sm text-on-surface dark:text-slate-300 text-xs sm:text-sm">Resumen:</span>
+          <div class="bg-primary/10 dark:bg-slate-800 text-primary dark:text-amber-400 px-2 sm:px-2.5 py-0.5 rounded-full font-label-sm font-bold text-xs">
             <span id="usedLinesCount">2</span> de 30 líneas
           </div>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="font-label-sm text-on-surface-variant dark:text-slate-400"><strong class="text-primary dark:text-slate-100 font-bold" id="summaryRowCount">2</strong> líneas activas</span>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <span class="font-label-sm text-on-surface-variant dark:text-slate-400 text-xs sm:text-sm"><strong class="text-primary dark:text-slate-100 font-bold" id="summaryRowCount">2</strong> activas</span>
           <span class="font-label-sm text-on-surface-variant dark:text-slate-400 font-mono text-[11px]" id="currentTimestampFooter">--:--</span>
         </div>
       </div>
       
       <!-- BOTÓN PRINCIPAL DE GUARDADO -->
-      <button class="relative w-full py-4 px-6 rounded-xl bg-primary dark:bg-amber-500 text-white dark:text-slate-950 font-headline-md font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 overflow-hidden group active:scale-[0.99] cursor-pointer" id="btnSubmitSync" onclick="handleSubmit()" type="button">
-        <span class="material-symbols-outlined text-[24px]" id="btnIcon">cloud_upload</span>
+      <button class="relative w-full py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl bg-primary dark:bg-amber-500 text-white dark:text-slate-950 font-headline-md font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 sm:gap-3 overflow-hidden group active:scale-[0.99] cursor-pointer text-sm sm:text-base" id="btnSubmitSync" onclick="handleSubmit()" type="button">
+        <span class="material-symbols-outlined text-[20px] sm:text-[24px]" id="btnIcon">cloud_upload</span>
         <span class="hidden animate-spin h-5 w-5 border-2 border-white dark:border-slate-950 border-t-transparent rounded-full" id="btnSpinner"></span>
         <span id="btnLabel">Guardar Solicitud y Sincronizar en Sheets</span>
       </button>
