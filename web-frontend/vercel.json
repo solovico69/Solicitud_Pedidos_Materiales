@@ -1,7 +1,7 @@
 {
   "version": 2,
   "outputDirectory": ".",
-  "cleanUrls": true,
+  "cleanUrls": false,
   "headers": [
     {
       "source": "/sw.js",

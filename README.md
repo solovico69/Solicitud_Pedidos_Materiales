@@ -76,7 +76,9 @@ Diseñada específicamente para ingenieros residentes, directores de obra y pers
 - **Control de Consumo Diario:** Registro del material efectivamente consumido o instalado en los frentes de trabajo.
 - **Descargo de Inventario:** Permite descargar el stock en sitio derivado de las entradas recibidas.
 - **Vista Unificada:** Exhibe el correlativo, número de solicitud despachada, obra, material, cantidad recibida y cantidad usada.
-- **Reedición Continua Permitida:** A diferencia de las entradas, los campos de consumo permanecen **siempre editables** para actualizar consumos progresivos a medida que avanza la jornada.
+- **Validación de Límite Máximo de Consumo:** El sistema previene registrar consumos que excedan la cantidad recibida en obra (`max="${cant_recibida}"`), alertando al usuario si el valor ingresado es superior.
+- **Retiro Automático por Consumo Total Completado:** Cuando el consumo de una solicitud alcanza o agota el 100% de lo recibido en obra (`cant_usada >= cant_recibida`) y se guarda, el material se retira automáticamente de la lista activa y del contador pendiente, manteniendo la pantalla limpia y enfocada en materiales con saldo remanente.
+- **Reedición Continua de Saldos Parciales:** Mientras quede remanente por consumir, el registro permanece disponible para reportar consumos acumulativos día a día.
 
 #### Pestaña 4: 📑 Historial de Solicitudes
 - **Seguimiento de Requisiciones Activas:** Resumen ejecutivo de los pedidos registrados para la obra seleccionada.

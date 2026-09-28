@@ -1598,7 +1598,10 @@ async function loadUsosObra(forceFresh = false) {
 function updateUsosBadges() {
   const pendingCount = usosObraData.filter(item => {
     const matchObra = !currentMasterObra || (item.obra && item.obra.toLowerCase() === currentMasterObra.toLowerCase());
-    return matchObra && !item.is_used;
+    const cantRec = Number(item.cant_recibida) || 0;
+    const cantUsada = Number(item.cant_usada) || 0;
+    const isCompleted = item.is_used && cantRec > 0 && cantUsada >= cantRec;
+    return matchObra && !isCompleted;
   }).length;
 
   const badge = document.getElementById('badgeUsosPending');
@@ -1623,13 +1626,21 @@ function renderUsosList() {
     items = items.filter(it => it.obra && it.obra.toLowerCase() === currentMasterObra.toLowerCase());
   }
 
+  // Filtrar solicitudes con consumo total completado (no mostrar si ya consumió todo lo recibido)
+  items = items.filter(it => {
+    const cantRec = Number(it.cant_recibida) || 0;
+    const cantUsada = Number(it.cant_usada) || 0;
+    const isCompleted = it.is_used && cantRec > 0 && cantUsada >= cantRec;
+    return !isCompleted;
+  });
+
   if (items.length === 0) {
     container.innerHTML = `
       <div class="text-center py-10 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-dashed border-slate-200 dark:border-slate-800 p-6 space-y-2">
-        <span class="material-symbols-outlined text-[36px] text-slate-400">handyman</span>
-        <h3 class="font-headline-md text-sm text-on-surface dark:text-slate-200 font-bold">No hay materiales para mostrar</h3>
+        <span class="material-symbols-outlined text-[36px] text-emerald-500">task_alt</span>
+        <h3 class="font-headline-md text-sm text-on-surface dark:text-slate-200 font-bold">Sin consumos pendientes</h3>
         <p class="font-body-sm text-on-surface-variant dark:text-slate-400 max-w-sm mx-auto">
-          ${currentMasterObra ? `No se encontraron materiales recibidos para registrar consumo en "${currentMasterObra}".` : 'No hay materiales disponibles para registro de uso en obra.'}
+          ${currentMasterObra ? `Todos los materiales recibidos para "${currentMasterObra}" han sido consumidos o no tienen consumos pendientes.` : 'No hay materiales con consumos pendientes de registrar.'}
         </p>
       </div>`;
     return;
@@ -1670,11 +1681,14 @@ function renderUsosList() {
           </div>
         </div>
 
-        <!-- Formulario de registro de uso (Permite edición continua) -->
+        <!-- Formulario de registro de uso (Permite edición continua hasta agotar) -->
         <div class="pt-2 border-t border-slate-200/70 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
           <div class="sm:col-span-5 space-y-1">
-            <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300 block">Cantidad Usada / Consumida *</label>
-            <input type="number" step="any" min="0" id="input-usada-${rowNum}" value="${defaultCant}" placeholder="Ej: 5" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-mono font-bold text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-semibold text-on-surface-variant dark:text-slate-300 block">Cantidad Usada / Consumida *</label>
+              <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400">Máx: ${item.cant_recibida} ${item.metrica}</span>
+            </div>
+            <input type="number" step="any" min="0" max="${item.cant_recibida}" id="input-usada-${rowNum}" value="${defaultCant}" placeholder="Máx: ${item.cant_recibida}" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-mono font-bold text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
           </div>
 
           <div class="sm:col-span-4 space-y-1">
@@ -1706,6 +1720,22 @@ async function confirmUsoObra(rowNum) {
     if (inputCant) inputCant.focus();
     return;
   }
+
+  // Validación: Prevenir que coloque más cantidad usada de lo recibido en obra
+  const item = usosObraData.find(it => it.row === rowNum);
+  const cantRecibida = item ? (Number(item.cant_recibida) || 0) : 0;
+  const metrica = item ? item.metrica : '';
+
+  if (item && cantRecibida > 0 && cantVal > cantRecibida) {
+    showToast(`⚠️ No permitido: La cantidad usada (${cantVal} ${metrica}) no puede exceder lo recibido en obra (${cantRecibida} ${metrica}).`);
+    if (inputCant) {
+      inputCant.focus();
+      inputCant.classList.add('ring-2', 'ring-rose-500');
+      setTimeout(() => inputCant.classList.remove('ring-2', 'ring-rose-500'), 3000);
+    }
+    return;
+  }
+
   if (!fechaVal) {
     showToast('⚠️ Selecciona la fecha de uso');
     if (inputFecha) inputFecha.focus();
@@ -1726,7 +1756,6 @@ async function confirmUsoObra(rowNum) {
     });
 
     // Actualizar estado en memoria local
-    const item = usosObraData.find(it => it.row === rowNum);
     if (item) {
       item.cant_usada = cantVal;
       item.fecha = fechaVal;
@@ -1735,7 +1764,12 @@ async function confirmUsoObra(rowNum) {
 
     updateUsosBadges();
     renderUsosList();
-    showToast(`✅ Uso en obra registrado en Google Sheets (fila #${rowNum})`);
+
+    if (cantRecibida > 0 && cantVal >= cantRecibida) {
+      showToast(`✅ Consumo completado (${cantVal} ${metrica}). La solicitud concluyó su consumo y fue archivada.`);
+    } else {
+      showToast(`✅ Uso en obra registrado en Google Sheets (fila #${rowNum})`);
+    }
     
     await StorageService.removeCache('usos_obra');
     await StorageService.removeCache('solicitudes'); // Salida afecta fórmula ACCION en Solicitudes

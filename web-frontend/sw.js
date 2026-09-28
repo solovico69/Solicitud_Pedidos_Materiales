@@ -5,19 +5,19 @@
  * ROL: Service Worker PWA (Offline Resilient & Stale-While-Revalidate)
  */
 
-const CACHE_NAME = 'ctrl-materiales-v2';
+const CACHE_NAME = 'ctrl-materiales-v3';
 
 const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './css/styles.css',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './js/app.js',
-  './js/modules/storage.js',
-  './js/modules/sheets-api.js',
-  './js/modules/sync.js'
+  '/',
+  '/index.html',
+  '/css/styles.css',
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/js/app.js',
+  '/js/modules/storage.js',
+  '/js/modules/sheets-api.js',
+  '/js/modules/sync.js'
 ];
 
 // ============================================
@@ -134,6 +134,28 @@ async function staleWhileRevalidate(request) {
  * Estrategia Cache First con actualización en segundo plano para código local
  */
 async function cacheFirstWithRefresh(request) {
+  // 1. Manejo específico y robusto para navegaciones (pantalla principal PWA)
+  if (request.mode === 'navigate') {
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse && networkResponse.status === 200) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, networkResponse.clone());
+        return networkResponse;
+      }
+    } catch (e) {
+      console.warn('[SW] Red no disponible para navegación, buscando fallback en caché...');
+    }
+
+    const fallback = (await caches.match(request)) ||
+                     (await caches.match('/')) ||
+                     (await caches.match('/index.html')) ||
+                     (await caches.match('./index.html'));
+    if (fallback) return fallback;
+    return new Response('Offline', { status: 503, statusText: 'Offline' });
+  }
+
+  // 2. Assets estáticos estándar (CSS, JS, imágenes)
   const cached = await caches.match(request);
   if (cached) {
     // Revalidar en segundo plano para la próxima visita
@@ -154,11 +176,6 @@ async function cacheFirstWithRefresh(request) {
     }
     return networkResponse;
   } catch (e) {
-    // Si es una navegación HTML y falló, servir index.html precacheado
-    if (request.mode === 'navigate') {
-      const fallback = await caches.match('./index.html') || await caches.match('/index.html');
-      if (fallback) return fallback;
-    }
     return new Response('Offline', { status: 503, statusText: 'Offline' });
   }
 }
