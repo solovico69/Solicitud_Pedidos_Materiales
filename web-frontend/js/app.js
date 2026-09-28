@@ -210,6 +210,28 @@ async function loadAppData() {
       populateDropdowns(baseDatos);
       showCacheStatus('⚡ Datos cargados (Instantáneo)');
     }
+
+    // Precargar datos en background para inicializar contadores e insignias desde el arranque
+    SHEETS_API.getEntradasObra().then(data => {
+      if (Array.isArray(data)) {
+        entradasObraData = data;
+        updateEntradasBadges();
+      }
+    }).catch(() => {});
+
+    SHEETS_API.getUsosObra().then(data => {
+      if (Array.isArray(data)) {
+        usosObraData = data;
+        updateUsosBadges();
+      }
+    }).catch(() => {});
+
+    SHEETS_API.getSolicitudes().then(data => {
+      if (Array.isArray(data)) {
+        historialSolicitudesData = data;
+        renderHistorialSolicitudes();
+      }
+    }).catch(() => {});
   } catch (e) {
     console.warn('[App] Error al cargar datos remotos, usando caché/local:', e.message);
     showCacheStatus('⚠️ Modo offline - Datos locales');
@@ -1315,6 +1337,8 @@ function onMasterObraChanged(obraVal) {
   renderEntradasList();
   renderUsosList();
   renderHistorialSolicitudes();
+  updateEntradasBadges();
+  updateUsosBadges();
 }
 
 // --- PESTAÑA 2: ENTRADA DE MATERIALES EN OBRA (VISTA UNIFICADA) ---
@@ -1357,7 +1381,11 @@ async function loadEntradasObra(forceFresh = false) {
 }
 
 function updateEntradasBadges() {
-  const pendingCount = entradasObraData.filter(item => !item.is_received).length;
+  const pendingCount = entradasObraData.filter(item => {
+    const matchObra = !currentMasterObra || (item.obra && item.obra.toLowerCase() === currentMasterObra.toLowerCase());
+    return matchObra && !item.is_received;
+  }).length;
+
   const badge = document.getElementById('badgeEntradasPending');
   if (badge) {
     if (pendingCount > 0) {
@@ -1568,7 +1596,11 @@ async function loadUsosObra(forceFresh = false) {
 }
 
 function updateUsosBadges() {
-  const pendingCount = usosObraData.filter(item => !item.is_used).length;
+  const pendingCount = usosObraData.filter(item => {
+    const matchObra = !currentMasterObra || (item.obra && item.obra.toLowerCase() === currentMasterObra.toLowerCase());
+    return matchObra && !item.is_used;
+  }).length;
+
   const badge = document.getElementById('badgeUsosPending');
   if (badge) {
     if (pendingCount > 0) {

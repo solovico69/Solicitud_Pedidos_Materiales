@@ -907,6 +907,13 @@ function doPost(e) {
   }
 
   const action = body.action;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const baseMeta = {
+    success: true,
+    spreadsheetId: ss.getId(),
+    spreadsheetName: ss.getName(),
+    timestamp: new Date().toISOString(),
+  };
 
   try {
     switch (action) {

@@ -1,12 +1,12 @@
-# Control Solicitud de Pedidos Materiales
+# GIMO • Control Solicitud de Pedidos & Gestión de Materiales en Obra
 
-> **v2.1.0** · **Estado: 🚀 Producción Activa (Adjuntos Fotográficos & Telegram Dual-Channel)** · **Industrial Precision — Victor Solorzano · 2026**
+> **v3.0.0** · **Estado: 🚀 Producción Activa (GIMO • Control Integral de Obra: Requisición, Entrada, Uso e Historial)** · **Industrial Precision — Victor Solorzano · 2026**
 
 ---
 
 ## 📋 Resumen Ejecutivo del Proyecto
 
-Sistema integral para la gestión, requisición en campo, supervisión y aprobación de pedidos de materiales en proyectos de construcción civil y arquitectura. 
+Sistema empresarial para la gestión, requisición en campo, recepción física de despachos, control de consumo diario en sitio, supervisión y aprobación de materiales en proyectos de construcción civil y arquitectura.
 
 El ecosistema opera mediante una arquitectura serverless desacoplada, compuesta por **dos Aplicaciones Web Progresivas (PWA)** independientes conectadas a un backend en **Google Apps Script (GAS)**, con persistencia centralizada en **Google Sheets** y alertas automatizadas en tiempo real a través de un **Bot de Telegram** con despacho multicanal (Resumen para Aprobador y Muestras Fotográficas comprimidas para Compras y Almacén).
 
@@ -15,84 +15,124 @@ El ecosistema opera mediante una arquitectura serverless desacoplada, compuesta 
 ## 🏗️ Arquitectura del Sistema
 
 ```
-                        ┌──────────────────────────────────────────────┐
-                        │              GOOGLE SHEETS                   │
-                        │  (Solicitudes, Base_Datos, Inventario, etc.) │
-                        └──────────────────────▲───────────────────────┘
-                                               │ (Lectura / Escritura por Encabezado)
-                                               ▼
-                        ┌──────────────────────────────────────────────┐
-                        │      BACKEND GOOGLE APPS SCRIPT (GAS)        │
-                        │         Web App REST API (/exec)             │
-                        │    Protección Estricta de Fórmulas Nativos   │
-                        └──────▲───────────────────────────────▲───────┘
-                               │                               │
-             (POST Registro)   │                               │ (GET / POST Aprobaciones)
-                               │                               │
-            ┌──────────────────┴─────────────┐   ┌─────────────┴─────────────────┐
-            │   PWA 1: SOLICITUD DE PEDIDOS  │   │   PWA 2: PANEL DE APROBACIÓN  │
-            │          (web-frontend)        │   │          (web-approver)       │
-            │     Ingenieros y Arquitectos   │   │       Jefe de Obra / Gerencia │
-            │      • Generación PDF Comprob. │   │      • Vista por Folio        │
-            │      • Dropdowns Dinámicos     │   │      • Filtros de Alto Contraste│
-            │      • Compresión Canvas Fotos │   │      • Aprobación por Ítem    │
-            │      • Modo Offline (PWA)      │   │                               │
-            └────────────────────────────────┘   └───────────────▲───────────────┘
-                                                                 │
-                 ┌───────────────────────────────────────────────┴───────────────┐
-                 │          ALERTAS AUTOMÁTICAS TELEGRAM DUAL-CHANNEL            │
-                 │   Canal 1 (Aprobador): Resumen textual de requisición         │
-                 │   Canal 2 (Compras/Fotos): Muestras fotográficas por partida  │
-                 └───────────────────────────────────────────────────────────────┘
+                        ┌─────────────────────────────────────────────────────────────┐
+                        │                       GOOGLE SHEETS                         │
+                        │  (Solicitudes, Base_Datos, Entrada, Salida, Inventario)     │
+                        └──────────────────────────────▲──────────────────────────────┘
+                                                       │ (Lectura / Escritura por Encabezados)
+                                                       ▼
+                        ┌─────────────────────────────────────────────────────────────┐
+                        │             BACKEND GOOGLE APPS SCRIPT (GAS)                │
+                        │                Web App REST API (/exec)                     │
+                        │          Protección Estricta de Fórmulas Nativas            │
+                        └──────────────▲───────────────────────────────▲──────────────┘
+                                       │                               │
+        (POST Requisición / Recepción) │                               │ (GET / POST Aprobaciones)
+                                       │                               │
+            ┌──────────────────────────┴─────────────┐   ┌─────────────┴─────────────────┐
+            │   PWA 1: GIMO (GESTIÓN DE MATERIALES)  │   │   PWA 2: PANEL DE APROBACIÓN  │
+            │              (web-frontend)            │   │          (web-approver)       │
+            │        Ingenieros Residentes y Obra    │   │       Jefe de Obra / Gerencia │
+            │      • 📝 Solicitud de Pedidos         │   │      • Vista por Folio        │
+            │      • 📥 Entrada en Obra (Bloqueada)  │   │      • Filtros de Alto Contraste│
+            │      • 🔨 Uso en Obra (Re-editable)    │   │      • Aprobación por Ítem    │
+            │      • 📑 Historial (Filtro ACCIÓN)    │   │                               │
+            │      • 🏢 Selector Maestro de Obra     │   └───────────────▲───────────────┘
+            │      • 📸 Adjuntos Fotos Comprimidas   │                   │
+            │      • 📄 Comprobante PDF (jsPDF)      │                   │
+            └────────────────────────────────────────┘                   │
+                                                                         │
+                         ┌───────────────────────────────────────────────┴───────────────┐
+                         │          ALERTAS AUTOMÁTICAS TELEGRAM DUAL-CHANNEL            │
+                         │   Canal 1 (Aprobador): Resumen textual de requisición         │
+                         │   Canal 2 (Compras/Fotos): Muestras fotográficas por partida  │
+                         └───────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 🚀 Componentes del Ecosistema
 
-### 1. 👷‍♂️ PWA de Solicitud de Materiales (`web-frontend/`)
-Diseñada específicamente para ingenieros residentes, directores de obra y arquitectos en campo:
-- **Formulario Inteligente y Flexible:** Permite registrar solicitudes de hasta 30 partidas simultáneas agrupadas en un mismo folio de control.
-- **Adjuntos Fotográficos de Muestras (Compras & Almacén):** Permite anexar entre 0 y 3 fotografías de referencia por partida (acabados, cerámicas, griferías, pinturas, etc.) capturadas desde la cámara o galería.
-- **Compresión en Cliente (HTML5 Canvas):** Redimensiona automáticamente las fotos a un máximo de 1280px con compresión JPEG (calidad 0.75), generando payloads ligeros de ~150-250 KB en Base64 para una transmisión instantánea.
-- **Galería de Miniaturas Reactiva:** Muestra thumbnails de 56x56px con badge individual de descarte (`×`) e indicador de compresión en tiempo real.
-- **Validación de Conectividad para Fotos:** Exige conexión de red activa si el pedido incluye fotografías para evitar saturar el almacenamiento local de la PWA con colas Base64 pesadas.
-- **Catálogos Dinámicos con Alta Inline:** Cada campo (`Obra`, `Sector`, `Material`, `Métrica`, `Profesional`) se nutre dinámicamente de la hoja `Base_Datos`. Incluye la función **"➕ Nuevo…"** dentro de cada desplegable para registrar nuevos ítems en la hoja al instante sin salir del formulario.
-- **Descarga de Comprobante en PDF:** Al guardar exitosamente una solicitud, genera y descarga automáticamente un comprobante en formato PDF profesional mediante `jsPDF` con el número de Folio calculado por la fórmula de la hoja, sello temporal y desglose ordenado.
-- **Modo Offline-First:** Con Service Worker y persistencia en `IndexedDB` bajo la estrategia **Stale-While-Revalidate**, permitiendo usar el catálogo aún sin cobertura de red.
-- **Modal de Configuración Flotante:** Acceso a ajustes de conexión con botón de cierre (**X**), tecla `Escape` y preservación íntegra de los datos en pantalla.
+### 1. 👷‍♂️ PWA 1: GIMO • Gestión Integral de Materiales en Obra (`web-frontend/`)
+Diseñada específicamente para ingenieros residentes, directores de obra y personal técnico en campo. Cuenta con un **Selector Maestro de Obra** en la cabecera que sincroniza reactivamente todas las secciones e insignias numéricas de estado:
 
-### 2. 👔 PWA de Supervisión y Aprobación (`web-approver/`)
+#### Pestaña 1: 📝 Solicitud de Pedidos
+- **Formulario Inteligente y Flexible:** Permite registrar solicitudes de hasta 30 partidas simultáneas agrupadas en un mismo folio de control.
+- **Métrica Automática Blindada:** La unidad de medida (`METRICA`) se completa automáticamente según el material seleccionado a partir de los catálogos vinculados, protegida contra edición manual directa para respetar la fórmula `ARRAYFORMULA` de Google Sheets.
+- **Adjuntos Fotográficos de Muestras (Compras & Almacén):** Anexo de 0 a 3 fotografías por partida (acabados, cerámicas, griferías, pinturas) capturadas desde cámara o galería.
+- **Compresión en Cliente (HTML5 Canvas):** Redimensiona automáticamente las fotos a un máximo de 1280px con compresión JPEG (calidad 0.75), generando payloads ligeros de ~150-250 KB en Base64 para transmisión fluida.
+- **Catálogos Dinámicos con Alta Inline:** Registro instantáneo de nuevos profesionales, obras, sectores o materiales con su métrica (`➕ Nuevo…`) sin abandonar el formulario.
+- **Comprobante en PDF Automatizado:** Generación y descarga directa mediante `jsPDF` con Folio de control oficial, fecha, solicitante y desglose de partidas.
+
+#### Pestaña 2: 📥 Entrada de Materiales en Obra
+- **Recepción Física en Sitio:** Control de despachos emitidos por almacén hacia la obra activa.
+- **Vista Unificada:** Visualización clara de despachos en una sola interfaz continua (sin sub-filtros fragmentados).
+- **Indicador de Folio:** Muestra el `N# Solicitud` original vinculado a cada partida despachada.
+- **Regla Estricta de Bloqueo tras Guardar:**
+  - Mientras no se haya guardado en Google Sheets, el ingeniero puede editar la cantidad recibida o presionar *"Llegó completo"*.
+  - Una vez confirmada y registrada en Sheets (`is_received = true`), la fila queda **permanentemente bloqueada (`disabled readonly`)** con la insignia `🔒 Guardado (Bloqueado)` para garantizar integridad operativa.
+
+#### Pestaña 3: 🔨 Uso de Materiales en Obra
+- **Control de Consumo Diario:** Registro del material efectivamente consumido o instalado en los frentes de trabajo.
+- **Descargo de Inventario:** Permite descargar el stock en sitio derivado de las entradas recibidas.
+- **Vista Unificada:** Exhibe el correlativo, número de solicitud despachada, obra, material, cantidad recibida y cantidad usada.
+- **Reedición Continua Permitida:** A diferencia de las entradas, los campos de consumo permanecen **siempre editables** para actualizar consumos progresivos a medida que avanza la jornada.
+
+#### Pestaña 4: 📑 Historial de Solicitudes
+- **Seguimiento de Requisiciones Activas:** Resumen ejecutivo de los pedidos registrados para la obra seleccionada.
+- **Filtro Inteligente por Columna `ACCIÓN`:**
+  - **Excluye automáticamente** todo ítem cuyo estado sea `"Despachado/Ejecutado"`.
+  - Muestra únicamente partidas en curso: *Pendiente por Despachar/Ejecutar*, *Rechazado*, *Pendiente por Aprobar* o *En Evaluación*.
+- **Buscador Rápido:** Filtrado en tiempo real por material, folio, solicitante o sector de la obra.
+- **Metadatos Completos:** Exhibe folio, fecha, solicitante, sector, cantidad, unidad, estado de aprobación, notas del supervisor y muestras fotográficas asociadas.
+
+---
+
+### 2. 👔 PWA 2: Panel de Supervisión y Aprobación (`web-approver/`)
 Diseñada para el Jefe de Obra, Gerente de Proyectos o personal administrativo:
-- **Visualización Agrupada por Folio:** Agrupa las partidas registradas bajo su código único de solicitud (`N# SOLICITUD`).
-- **Segmented Control de Alto Contraste:** Pestañas con estilos activos vibrantes y contadores en tiempo real:
-  - ⏳ **Pendientes** (Ámbar intenso con badge de conteo)
-  - 📋 **Todos** (Azul cielo corporativo con total global)
-  - ✅ **Aprobados** (Esmeralda con recuento de ítems aprobados)
-  - ❌ **Rechazados** (Rojo carmesí con recuento de ítems rechazados)
-- **Filtrado Granular por Partida:** Al filtrar por estado, cada tarjeta muestra **exclusivamente los materiales que cumplen esa condición**, manteniendo su número correlativo original `#X` y el indicador de progreso (ej: `1 de 3 líneas`).
-- **Control por Ítem:** Botones táctiles individuales para *Aprobar*, *Rechazar* o *Restaurar a Pendiente*, junto a un campo obligatorio de motivo para rechazos (`OBSERVACION POR ITEM`).
-- **Acciones Rápidas por Pedido:** Botones de un clic para *"Aprobar Todo"* o *"Rechazar Todo"* el folio.
-- **Barra de Acción Flotante:** Acumula las modificaciones en memoria y permite sincronizarlas por lote en Google Sheets con registro automático de la fecha (`FECHA APROBADO`).
+- **Visualización Agrupada por Folio:** Agrupa las partidas bajo su código único de requisición (`N# SOLICITUD`).
+- **Segmented Control de Alto Contraste:** Pestañas activas con recuento en vivo:
+  - ⏳ **Pendientes** (Ámbar intenso)
+  - 📋 **Todos** (Azul cielo corporativo)
+  - ✅ **Aprobados** (Verde esmeralda)
+  - ❌ **Rechazados** (Rojo carmesí)
+- **Filtrado Granular por Partida:** Al filtrar por estado, muestra exclusivamente los materiales que cumplen la condición, manteniendo su número correlativo y progreso.
+- **Control por Ítem:** Botones táctiles individuales para *Aprobar*, *Rechazar* o *Restaurar a Pendiente*, con campo de justificación obligatorio para rechazos (`OBSERVACION POR ITEM`).
+- **Acciones Rápidas:** *"Aprobar Todo"* o *"Rechazar Todo"* el pedido en un solo clic.
+- **Sincronización por Lote:** Barra de acción flotante que persiste las decisiones en Google Sheets estampando `FECHA APROBADO`.
+
+---
 
 ### 3. ⚙️ Backend Serverless (`gas-backend/Code.gs`)
-- **API REST Robusta:** Manejo de peticiones `GET` y `POST` con comunicación de texto plano para eliminar problemas de preflight CORS.
-- **Protección Estricta de Columnas Formuladas (Regla de Oro):** Detecta y omite programáticamente las columnas formuladas (`N#`, `N# SOLICITUD`, inventarios calculados). Inserta únicamente en las columnas de entrada de datos y lee el resultado calculado por las fórmulas de Sheets.
+- **API REST con CORS Optimizado:** Endpoints `GET` y `POST` con comunicación en texto plano para evitar preflight OPTIONS entre dominios.
+- **Protocolo de Protección de Fórmulas (Regla de Oro):**
+  - Identifica y omite programáticamente columnas formuladas (`N#`, `N# SOLICITUD`, `METRICA`, `ACCION`, inventarios calculados).
+  - En inserciones, escribe únicamente en columnas de entrada de datos y lee el resultado calculado por las fórmulas nativas de Sheets.
 - **Detección Dinámica por Encabezados (Header-Based):** Localiza heurísticamente las cabeceras en cada hoja, permitiendo reordenar columnas sin alterar el funcionamiento del software.
-- **Mapeo Booleano de Muestras (`TIENE_FOTOS`):** Escribe automáticamente `true` o `false` para activar de forma nativa las casillas de verificación en Google Sheets según la presencia de fotos en la partida.
-- **Despacho Fotográfico Multipart:** Decodifica Base64 a Blobs en memoria y despacha vía `sendPhoto` (1 foto) o `sendMediaGroup` (2-3 fotos) con caption estructurado en HTML y blindaje total mediante `try/catch`.
-- **Menú de Diagnóstico en Sheets:** Herramienta interactiva en `⚙️ Control Materiales > 📸 Probar Canal de Fotos Telegram` para verificar la conectividad del bot con el grupo de compras.
+- **Endpoints Disponibles:**
+  - `init`: Metadatos y estructura del libro.
+  - `getBaseDatos`: Catálogos agrupados y mapa relacional material-métrica.
+  - `getSolicitudes`: Historial de transacciones de solicitudes.
+  - `getSolicitudesPendientes`: Requisiciones en espera de aprobación.
+  - `submitSolicitud` / `submitMultipleSolicitudes`: Registro de pedidos respetando fórmulas.
+  - `addToBaseDatos`: Inserción inline de profesionales, obras, sectores o materiales.
+  - `getEntradasObra` / `saveEntradaObra`: Lectura de despachos y escritura estricta en Cols 14 (`CANT_RECIBIDA`) y 15 (`E_FECHA`).
+  - `getUsosObra` / `saveUsoObra`: Lectura de inventario en obra y escritura estricta en Cols 16 (`CANT_USADA`) y 17 (`U_FECHA`).
+  - `updateAprobaciones`: Actualización por lote de estados en Solicitudes.
+- **Mapeo Booleano de Muestras (`TIENE_FOTOS`):** Escribe automáticamente `true` o `false` para activar casillas de verificación en Sheets según la presencia de fotos.
+- **Despacho Fotográfico Multipart:** Decodifica Base64 a Blobs y despacha a Telegram vía `sendPhoto` o `sendMediaGroup` con formato HTML y blindaje total `try/catch`.
+
+---
 
 ### 4. 📱 Notificaciones Automatizadas por Telegram (Dual-Channel)
 - **Bot Oficial:** `@SolicitudMaterialesObras_bot`.
 - **Canal 1 — Supervisión y Aprobación (`TELEGRAM_CHAT_ID`):**
   - Folio oficial del pedido (`REQ-XXXX`).
-  - Nombre del solicitante y obra destino.
-  - Total de líneas solicitadas y desglose de materiales principales.
+  - Solicitante, obra destino, total de partidas y desglose de materiales.
   - Enlace directo con un clic hacia la PWA de Aprobación.
 - **Canal 2 — Compras & Almacén (`TELEGRAM_CHAT_ID_FOTOS`):**
   - Recepción instantánea de las fotos de muestra de obra.
-  - Caption técnico estructurado: Folio, Partida #, Material, Cantidad, Sector, Obra y Solicitante.
+  - Caption estructurado: Folio, Partida #, Material, Cantidad, Sector, Obra y Solicitante.
 
 ---
 
@@ -100,80 +140,115 @@ Diseñada para el Jefe de Obra, Gerente de Proyectos o personal administrativo:
 
 ```
 Control Solicitud de Pedidos Materiales/
-├── README.md                                       # Documentación técnica completa (v2.0.0)
+├── README.md                                       # Documentación técnica maestra (v3.0.0)
 ├── PROYECTO_PROMPT.md                              # Especificación y requerimientos maestros
-├── Control Solicitud de Pedidos Materiales.xlsx    # Estructura de referencia del libro Excel
+├── Control Solicitud de Pedidos Materiales.xlsx    # Estructura del libro de cálculo de referencia
 ├── gas-backend/                                    # Código fuente del Backend Google Apps Script
-│   ├── Code.gs                                     # Controlador API, alertas Telegram y Sheets
+│   ├── Code.gs                                     # Controlador API REST, alertas Telegram y Sheets
+│   ├── Codigo GAS de Solicitud...txt               # Respaldo en texto plano para copiar a GAS
 │   └── appsscript.json                             # Manifiesto y alcances OAuth de GAS
-├── web-frontend/                                   # PWA 1: Requisición de Pedidos (Ingenieros)
-│   ├── index.html                                  # Interfaz principal de solicitud
+├── web-frontend/                                   # PWA 1: GIMO (Ingenieros en Obra)
+│   ├── index.html                                  # Interfaz de 4 pestañas operativas
 │   ├── sw.js                                       # Service Worker (caché offline y PWA)
 │   ├── manifest.json                               # Manifiesto de instalación PWA
-│   ├── vercel.json                                 # Configuración Vercel (outputDirectory: ".")
+│   ├── vercel.json                                 # Configuración de despliegue en Vercel
 │   ├── css/
 │   │   └── styles.css                              # Sistema visual Industrial Precision
 │   ├── js/
-│   │   ├── app.js                                  # Lógica UI, validación y exportación PDF
+│   │   ├── app.js                                  # Lógica UI de pestañas, control de obra y PDF
 │   │   └── modules/
 │   │       ├── sheets-api.js                       # Cliente HTTP hacia Apps Script
-│   │       ├── storage.js                          # Gestión de caché y URL predeterminada
+│   │       ├── storage.js                          # Gestión de caché y Stale-While-Revalidate
 │   │       └── sync.js                             # Cola y sincronización en segundo plano
-│   └── icons/
-│       ├── icon-192.png                            # Isotipo PWA 192x192
-│       └── icon-512.png                            # Isotipo PWA 512x512
-└── web-approver/                                   # PWA 2: Aprobación de Pedidos (Jefe / Supervisor)
+│   └── icons/                                      # Isotipos PWA (192x192, 512x512)
+└── web-approver/                                   # PWA 2: Aprobación de Pedidos (Supervisión)
     ├── index.html                                  # Interfaz de supervisión por folios
     ├── sw.js                                       # Service Worker PWA
     ├── manifest.json                               # Manifiesto PWA Aprobaciones
-    ├── vercel.json                                 # Configuración Vercel (outputDirectory: ".")
+    ├── vercel.json                                 # Configuración de despliegue en Vercel
     ├── js/
-    │   ├── app.js                                  # Lógica de estados, filtrado y aprobación
+    │   ├── app.js                                  # Lógica de estados y aprobación por lote
     │   └── modules/
     │       ├── sheets-api.js                       # API cliente para actualización de estados
     │       └── storage.js                          # Almacenamiento local y URL de backend
-    └── icons/
-        ├── icon-192.png                            # Isotipo Aprobador 192x192
-        └── icon-512.png                            # Isotipo Aprobador 512x512
+    └── icons/                                      # Isotipos Aprobador (192x192, 512x512)
 ```
 
 ---
 
 ## 📊 Estructura de la Base de Datos (Google Sheets)
 
-El libro de cálculo está estructurado en 5 hojas clave:
-
 ### 1. `Solicitudes` (Hoja Maestra de Transacciones)
-| Columna | Nombre de Cabecera | Tipo de Dato / Naturaleza |
+Cabecera en **Fila 1**:
+
+| Col | Nombre de Cabecera | Naturaleza / Tratamiento en Código |
 | :---: | :--- | :--- |
-| **A** | `N#` | 🔒 **Formulada** (Correlativo global de filas) |
-| **B** | `N# SOLICITUD` | 🔒 **Formulada** (Genera el Folio único de pedido agrupado) |
-| **C** | `FECHA` | Input (Fecha de registro de la solicitud) |
-| **D** | `SOLICITANTE` | Input (Arquitecto o Ingeniero responsable) |
-| **E** | `OBRA` | Input (Proyecto u obra activa) |
-| **F** | `SECTOR DE LA OBRA` | Input (Frente o sector de trabajo) |
-| **G** | `MATERIAL` | Input (Descripción del material solicitado) |
-| **H** | `METRICA` | Input (Unidad de medida: sacos, m³, kg, barras, etc.) |
-| **I** | `CANTIDAD` | Input (Cantidad requerida) |
-| **J** | `APROBADO` | Input / Estado (`Pendiente` · `Aprobado` · `Rechazado`) |
-| **K** | `FECHA APROBADO` | Input (Fecha automática de la aprobación/rechazo) |
-| **L** | `OBSERVACION POR ITEM` | Input (Notas del supervisor o motivo de rechazo) |
-| **M** | `TIENE_FOTOS` | Input / Casilla de Verificación (`TRUE` si incluye muestras fotográficas, `FALSE` si no) |
+| **A** | `N#` | 🔒 **Formulada** (Correlativo global de filas. Protegida contra escritura) |
+| **B** | `N# SOLICITUD` | 🔒 **Formulada** (Folio de pedido agrupado. Protegida contra escritura) |
+| **C** | `FECHA` | Input manual (Fecha de registro de la solicitud) |
+| **D** | `SOLICITANTE` | Input manual (Arquitecto o Ingeniero responsable) |
+| **E** | `OBRA` | Input manual (Proyecto u obra activa) |
+| **F** | `SECTOR DE LA OBRA` | Input manual (Frente o sector de trabajo) |
+| **G** | `MATERIAL` | Input manual (Descripción del material solicitado) |
+| **H** | `METRICA` | 🔒 **Formulada** (Unidad automática vía `ARRAYFORMULA`/`VLOOKUP`. Protegida contra escritura) |
+| **I** | `CANTIDAD` | Input manual (Cantidad requerida) |
+| **J** | `APROBADO` | Input manual / Estado (`Pendiente` · `Aprobado` · `Rechazado`) |
+| **K** | `FECHA APROBADO` | Input manual (Fecha de aprobación/rechazo) |
+| **L** | `OBSERVACION POR ITEM`| Input manual (Notas del supervisor o motivo de rechazo) |
+| **M** | `TIENE_FOTOS` | Input manual (`TRUE` si incluye muestras fotográficas, `FALSE` si no) |
+| **N** | `ACCION` | 🔒 **Formulada** (`=MAP(...)`: *Despachado/Ejecutado*, *Rechazado*, *Pendiente por Despachar/Ejecutar*) |
 
-> ⚠️ **Regla de Protección de Fórmulas:** El código tiene prohibido sobrescribir las columnas A y B. El número de Folio es leído directamente tras la inserción para el comprobante PDF.
-
-### 2. `Base_Datos` (Catálogos Dinámicos)
-Columnas independientes de diferente longitud:
-- `ARQUITECTO/INGENIERO` · `OBRAS` · `SECTOR DE LA OBRA` · `MATERIAL` · `METRICA`
-
-### 3. Hojas de Inventario y Movimientos
-- `Entrada_Materiales` (Cabecera en Fila 3): Registro de ingresos a bodega.
-- `Salida_Materiales` (Cabecera en Fila 3): Registro de despachos hacia obras.
-- `Invetario_Materiales` (Cabecera en Fila 3): 100% formulada y calculada (Entradas, Salidas y Disponibilidad).
+> ⚠️ **Protocolo de Protección de Fórmulas:** Las columnas **A, B, H y N** están formalmente protegidas en `PROTECTED_FORMULA_COLUMNS`. El código tiene terminantemente prohibido escribir en ellas.
 
 ---
 
-## 🌐 Configuración y Enlaces en Producción
+### 2. `Entrada_Materiales` (Ingreso General y Recepción en Obra)
+Cabecera en **Fila 3**:
+
+- **Tabla Almacén Central (Columnas A:E, 1 a 5):**
+  - `N#` (Col 1, formulada) · `MATERIAL` (Col 2) · `METRICA` (Col 3, formulada) · `CANTIDAD` (Col 4) · `FECHA` (Col 5).
+- **Tabla Entrada en Obras (Columnas H:O, 8 a 15):**
+  - Col 8 (`E_N#`): 🔒 Formulada
+  - Col 9 (`E_N#_SOLICITUD`): 🔒 Formulada
+  - Col 10 (`E_OBRA`): 🔒 Formulada
+  - Col 11 (`E_MATERIAL`): 🔒 Formulada
+  - Col 12 (`E_METRICA`): 🔒 Formulada
+  - Col 13 (`E_CANTIDAD`): 🔒 Formulada (Cantidad despachada por Almacén)
+  - Col 14 (`CANT_RECIBIDA`): ✍️ **Input manual del Ingeniero en Obra**
+  - Col 15 (`E_FECHA`): ✍️ **Input manual (Fecha de recepción en sitio)**
+
+---
+
+### 3. `Salida_Materiales` (Despachos y Consumo en Obra)
+Cabecera en **Fila 3**:
+
+- **Tabla Almacén Central (Columnas A:G, 1 a 7):**
+  - `N#` (Col 1, formulada) · `N# SOLICITUD` (Col 2) · `OBRA` (Col 3) · `MATERIAL` (Col 4) · `METRICA` (Col 5, formulada) · `CANTIDAD` (Col 6) · `FECHA` (Col 7).
+- **Tabla Uso en Obras (Columnas J:Q, 10 a 17):**
+  - Col 10 (`U_N#`): 🔒 Formulada
+  - Col 11 (`U_N#_SOLICITUD`): 🔒 Formulada
+  - Col 12 (`U_OBRA`): 🔒 Formulada
+  - Col 13 (`U_MATERIAL`): 🔒 Formulada
+  - Col 14 (`U_METRICA`): 🔒 Formulada
+  - Col 15 (`U_CANT_RECIBIDA`): 🔒 Formulada (Total recibido en obra)
+  - Col 16 (`CANT_USADA`): ✍️ **Input manual del Ingeniero en Obra (Consumo acumulado)**
+  - Col 17 (`U_FECHA`): ✍️ **Input manual (Fecha de uso/instalación)**
+
+---
+
+### 4. `Invetario_Materiales` (Inventario General Almacén)
+Cabecera en **Fila 3**:
+- 100% formulada y calculada: `MATERIAL` · `CANT ENTRADA` · `CANT SALIDA` · `DISPONIBILIDAD`.
+
+---
+
+### 5. `Base_Datos` (Catálogos Maestros Dinámicos)
+Cabecera en **Fila 1**:
+- Catálogos independientes: `ARQUITECTO/INGENIERO` · `OBRAS` · `SECTOR DE LA OBRA` · `MATERIAL` · `METRICA`.
+
+---
+
+## 🌐 Configuración y Parámetros en Producción
 
 ### Parámetros de Backend Activos
 - **Spreadsheet ID:** `1rGqlf5TU02Ji3tveeyOkSzdYDNJvH5TLkqv4xzSqMRQ`
@@ -182,33 +257,32 @@ Columnas independientes de diferente longitud:
   https://script.google.com/macros/s/AKfycbzRZBXQP_jMxHE61DNv1kxtsVuLebB22Vr9mzrNv23Hj8-u8S6uea-2snoxgwAWdcMGjA/exec
   ```
 - **Credenciales en Script Properties (GAS):**
-  - `TELEGRAM_BOT_TOKEN`: Token HTTP del bot principal de Telegram.
-  - `TELEGRAM_BOT_TOKEN_FOTOS`: *(Opcional)* Token del bot de fotos si se utiliza uno dedicado.
+  - `TELEGRAM_BOT_TOKEN`: Token HTTP del bot oficial de Telegram.
+  - `TELEGRAM_BOT_TOKEN_FOTOS`: *(Opcional)* Token del bot de fotos.
   - `TELEGRAM_CHAT_ID`: `7209177233` (Chat personal/grupo del Aprobador).
-  - `TELEGRAM_CHAT_ID_FOTOS`: `-1003911315147` (Grupo de Compras y Almacén para muestras fotográficas).
+  - `TELEGRAM_CHAT_ID_FOTOS`: `-1003911315147` (Grupo de Compras y Almacén para fotos de muestra).
 
 ### Despliegue en Vercel
-Ambas aplicaciones se despliegan desde el mismo repositorio de GitHub en Vercel, asignando el directorio raíz correspondiente:
 
 | Aplicación | Root Directory en Vercel | Output Directory | Preset |
 | :--- | :---: | :---: | :---: |
-| **Solicitud de Materiales** | `web-frontend` | `.` | Other |
-| **Aprobación de Pedidos** | `web-approver` | `.` | Other |
+| **GIMO • Solicitud y Control en Obra** | `web-frontend` | `.` | Other |
+| **Supervisión y Aprobación** | `web-approver` | `.` | Other |
 
 ---
 
 ## 🎨 Identidad Visual y Experiencia de Usuario
 
 Diseñado bajo la filosofía **Industrial Precision**:
-- **Paleta de Colores:** Azul Acero (`#0F172A`), Azul Cielo Eléctrico (`#0284C7`), Ámbar de Precaución (`#F59E0B`), Verde Esmeralda (`#10B981`) y Rojo Carmesí (`#E11D48`).
+- **Paleta de Colores Corporativa:** Azul Marino Profundo (`#0F2942`), Ámbar Industrial (`#F59E0B`), Verde Esmeralda (`#059669`), Azul Acero Oscuro (`#0F172A`) y Carmesí (`#BA1A1A`).
 - **Soporte de Tema:** Modo Oscuro y Claro persistente con detección de preferencias del sistema.
-- **Tipografía:** *Inter* para alta legibilidad en interfaces táctiles y *JetBrains Mono* para folios y números.
+- **Tipografía:** *Plus Jakarta Sans* para encabezados ejecutivos e *Inter* para formularios y lectura en campo.
 
 ---
 
 ## 📄 Autoría y Créditos
 
-- **PROYECTO:** Control Solicitud de Pedidos Materiales
+- **PROYECTO:** GIMO • Control Solicitud de Pedidos & Gestión de Materiales en Obra
 - **DESARROLLO & ARQUITECTURA:** Victor Solorzano
 - **ASISTENCIA TÉCNICA:** OpenCode for Obsidian & Antigravity IDE
 - **AÑO:** 2026
