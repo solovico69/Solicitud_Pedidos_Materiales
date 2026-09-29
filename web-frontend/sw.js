@@ -5,7 +5,7 @@
  * ROL: Service Worker PWA (Offline Resilient & Stale-While-Revalidate)
  */
 
-const CACHE_NAME = 'ctrl-materiales-v4';
+const CACHE_NAME = 'ctrl-materiales-v5';
 
 const STATIC_ASSETS = [
   '/',

@@ -88,6 +88,36 @@ let MATERIAL_METRICAS = {
   "Repuestos para Aires Acondicionados": "Unidad (und)"
 };
 
+/**
+ * Obtiene la métrica correspondiente a un material con normalización flexible.
+ * Es tolerante a espacios, mayúsculas/minúsculas, acentos y tipos de comillas (" vs ” vs ″).
+ * @param {string} materialName
+ * @return {string}
+ */
+function getMetricaForMaterial(materialName) {
+  if (!materialName) return '';
+  const target = String(materialName).trim();
+  if (MATERIAL_METRICAS[target]) return MATERIAL_METRICAS[target];
+
+  const cleanNorm = (str) => String(str || '')
+    .trim()
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Sin acentos
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036"]/g, '"') // Unificar comillas a "
+    .replace(/[\u2018\u2019\u201A\u201B\u2032']/g, "'") // Unificar apóstrofes
+    .replace(/\s+/g, ' '); // Unificar espacios
+
+  const normTarget = cleanNorm(target);
+
+  for (const [mat, met] of Object.entries(MATERIAL_METRICAS)) {
+    if (cleanNorm(mat) === normTarget) {
+      return met;
+    }
+  }
+
+  return '';
+}
+
 const INITIAL_ROWS = [
   { sector: "", material: "", unidad: "", cantidad: "", fotos: [] },
   { sector: "", material: "", unidad: "", cantidad: "", fotos: [] }
@@ -305,8 +335,9 @@ function populateDropdowns(baseDatos) {
 
   // Sincronizar automáticamente la métrica en cada fila según su material
   currentRows.forEach(r => {
-    if (r.material && (!r.unidad || MATERIAL_METRICAS[r.material])) {
-      r.unidad = MATERIAL_METRICAS[r.material] || r.unidad || '';
+    if (r.material) {
+      const autoMet = getMetricaForMaterial(r.material);
+      if (autoMet) r.unidad = autoMet;
     }
   });
 
@@ -336,7 +367,7 @@ function buildNewFieldWrap(wrapId, inputId, placeholder, saveFn, cancelFn) {
 
 function buildNewMaterialWrap(index) {
   const unidadOpts = Array.from(new Set(UNIDADES)).filter(Boolean);
-  const optionsHtml = unidadOpts.map(u => `<option value="${u}">`).join('');
+  const optionsHtml = unidadOpts.map(u => `<option value="${u}">${u}</option>`).join('');
   return `
     <div id="newMaterialWrap-${index}" class="hidden mt-2 space-y-2.5 rounded-xl bg-surface-container-low dark:bg-[#0f172a] border border-emerald-600/40 p-3.5 fade-in">
       <label class="font-label-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
@@ -349,10 +380,13 @@ function buildNewMaterialWrap(index) {
         </div>
         <div>
           <label class="text-[11px] text-on-surface-variant dark:text-slate-400 font-medium mb-1 block">Métrica / Unidad Asociada</label>
-          <input type="text" id="newMaterialMetricInput-${index}" list="metricList-${index}" class="w-full h-10 px-3 rounded-lg bg-surface-container-lowest dark:bg-slate-800 text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:ring-2 focus:ring-emerald-600 focus:outline-none text-sm" placeholder="Ej: Saco / Bolsa">
-          <datalist id="metricList-${index}">
-            ${optionsHtml}
-          </datalist>
+          <div class="relative">
+            <select id="newMaterialMetricInput-${index}" class="w-full h-10 pl-3 pr-8 rounded-lg bg-surface-container-lowest dark:bg-[#1e293b] text-on-surface dark:text-slate-100 border border-slate-200 dark:border-slate-700 font-body-md focus:ring-2 focus:ring-emerald-600 focus:outline-none appearance-none cursor-pointer text-sm">
+              <option disabled selected value="">Seleccione la métrica / unidad...</option>
+              ${optionsHtml}
+            </select>
+            <span class="material-symbols-outlined text-outline dark:text-slate-400 absolute right-2.5 top-2.5 text-[18px] pointer-events-none">expand_more</span>
+          </div>
         </div>
       </div>
       <div class="flex justify-end gap-2 pt-1">
@@ -378,9 +412,12 @@ function renderRows() {
     const sectorOpts = Array.from(new Set([...SECTORES, row.sector])).filter(Boolean);
     const materialOpts = Array.from(new Set([...MATERIALES, row.material])).filter(Boolean);
 
-    // Si tiene material pero no unidad, asignar la unidad automática de una vez
-    if (row.material && !row.unidad && MATERIAL_METRICAS[row.material]) {
-      row.unidad = MATERIAL_METRICAS[row.material];
+    // Si tiene material pero no unidad, asignar la unidad automática de una vez con búsqueda normalizada
+    if (row.material) {
+      const autoMet = getMetricaForMaterial(row.material);
+      if (autoMet && !row.unidad) {
+        row.unidad = autoMet;
+      }
     }
 
     const sectorHtml = `<option disabled ${!row.sector ? 'selected' : ''} value="">Seleccione el sector...</option>` +
@@ -467,16 +504,25 @@ function renderRows() {
             <span class="font-semibold">Muestras Fotográficas</span>
             <span class="text-xs text-outline/80 dark:text-slate-500">(Opcional • Máx. 3)</span>
           </div>
-          <div class="flex items-center gap-2">
-            <div id="photo-loading-${index}" class="hidden flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container dark:bg-slate-800 text-primary dark:text-amber-400 font-label-sm text-xs">
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <div id="photo-loading-${index}" class="hidden flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface-container dark:bg-slate-800 text-primary dark:text-amber-400 font-label-sm text-xs">
               <span class="animate-spin h-3.5 w-3.5 border-2 border-primary dark:border-amber-400 border-t-transparent rounded-full"></span>
               <span>Comprimiendo...</span>
             </div>
-            <label for="photo-input-${index}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${(row.fotos && row.fotos.length >= 3) ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-primary/10 dark:bg-amber-500/10 text-primary dark:text-amber-400 hover:bg-primary/20 dark:hover:bg-amber-500/20 cursor-pointer'} transition-colors font-label-sm font-semibold select-none text-xs shadow-xs">
-              <span class="material-symbols-outlined text-[16px]">photo_camera</span>
-              <span>Adjuntar Foto (${(row.fotos ? row.fotos.length : 0)}/3)</span>
+
+            <!-- Botón 1: Cámara (Móvil nativo con sensor / PC con WebCam) -->
+            <button type="button" onclick="triggerCameraCapture(${index})" ${(row.fotos && row.fotos.length >= 3) ? 'disabled' : ''} class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg ${(row.fotos && row.fotos.length >= 3) ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-primary/10 dark:bg-amber-500/10 text-primary dark:text-amber-400 hover:bg-primary/20 dark:hover:bg-amber-500/20 cursor-pointer'} transition-colors font-label-sm font-semibold select-none text-xs shadow-xs" title="Tomar foto con la cámara">
+              <span class="material-symbols-outlined text-[15px]">photo_camera</span>
+              <span>Cámara</span>
+            </button>
+            <input type="file" id="camera-input-${index}" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(${index}, this)" />
+
+            <!-- Botón 2: Galería / Archivo (Celular Galería / PC Explorador) -->
+            <label for="gallery-input-${index}" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg ${(row.fotos && row.fotos.length >= 3) ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-surface-container dark:bg-slate-800 text-on-surface dark:text-slate-200 hover:bg-surface-container-high dark:hover:bg-slate-700 cursor-pointer'} transition-colors font-label-sm font-semibold select-none text-xs shadow-xs" title="Seleccionar imagen de la galería o disco">
+              <span class="material-symbols-outlined text-[15px]">photo_library</span>
+              <span>Galería</span>
             </label>
-            <input type="file" id="photo-input-${index}" accept="image/*" capture="environment" class="hidden" ${(row.fotos && row.fotos.length >= 3) ? 'disabled' : ''} onchange="handlePhotoUpload(${index}, this)" />
+            <input type="file" id="gallery-input-${index}" accept="image/*" class="hidden" ${(row.fotos && row.fotos.length >= 3) ? 'disabled' : ''} multiple onchange="handlePhotoUpload(${index}, this)" />
           </div>
         </div>
 
@@ -497,6 +543,112 @@ function renderRows() {
   });
 
   updateCounters();
+}
+
+// ============================================
+// GESTIÓN DE CÁMARA & FOTOGRAFÍAS (MÓVIL & PC)
+// ============================================
+
+let currentCameraRowIndex = null;
+let webcamMediaStream = null;
+
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         (window.matchMedia && window.matchMedia("(max-width: 768px)").matches && 'ontouchstart' in window);
+}
+
+function triggerCameraCapture(index) {
+  currentCameraRowIndex = index;
+  // En móviles: disparar el input nativo de cámara con capture="environment" (experiencia nativa con sensor completo)
+  if (isMobileDevice()) {
+    const input = document.getElementById(`camera-input-${index}`);
+    if (input) input.click();
+    return;
+  }
+
+  // En PC/Laptop: abrir modal con visor de cámara web en vivo
+  openCameraModal(index);
+}
+
+async function openCameraModal(index) {
+  currentCameraRowIndex = index;
+  const modal = document.getElementById('cameraModal');
+  const content = document.getElementById('cameraModalContent');
+  const video = document.getElementById('webcamVideo');
+  const loading = document.getElementById('cameraLoading');
+  if (!modal || !content || !video) return;
+
+  modal.classList.remove('opacity-0', 'pointer-events-none');
+  modal.classList.add('opacity-100');
+  content.classList.remove('translate-y-8');
+  content.classList.add('translate-y-0');
+  if (loading) loading.classList.remove('hidden');
+
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Tu navegador o equipo no soporta captura de cámara directa.');
+    }
+    webcamMediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: false
+    });
+    video.srcObject = webcamMediaStream;
+    await video.play();
+    if (loading) loading.classList.add('hidden');
+  } catch (err) {
+    if (loading) loading.classList.add('hidden');
+    showToast(`❌ Error al acceder a la cámara: ${err.message}`);
+    closeCameraModal();
+  }
+}
+
+function closeCameraModal() {
+  const modal = document.getElementById('cameraModal');
+  const content = document.getElementById('cameraModalContent');
+  const video = document.getElementById('webcamVideo');
+  if (webcamMediaStream) {
+    webcamMediaStream.getTracks().forEach(track => track.stop());
+    webcamMediaStream = null;
+  }
+  if (video) video.srcObject = null;
+  if (modal) {
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    modal.classList.remove('opacity-100');
+  }
+  if (content) {
+    content.classList.add('translate-y-8');
+    content.classList.remove('translate-y-0');
+  }
+  currentCameraRowIndex = null;
+}
+
+async function captureWebcamPhoto() {
+  if (currentCameraRowIndex === null) return;
+  const video = document.getElementById('webcamVideo');
+  const canvas = document.getElementById('webcamCanvas');
+  if (!video || !canvas) return;
+
+  const w = video.videoWidth || 640;
+  const h = video.videoHeight || 480;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  const row = currentRows[currentCameraRowIndex];
+  if (row) {
+    if (!Array.isArray(row.fotos)) row.fotos = [];
+    if (row.fotos.length < 3) {
+      row.fotos.push(dataUrl);
+      showToast(`📸 Foto capturada para Línea #${currentCameraRowIndex + 1}`);
+      renderRows();
+    } else {
+      showToast('⚠️ Máximo 3 fotos por partida');
+    }
+  }
+
+  closeCameraModal();
 }
 
 /**
@@ -819,7 +971,7 @@ function onRowSelectChanged(index, field, selectEl) {
 
   // Al seleccionar un material existente, autocompletar la métrica en la fila y en la vista
   if (field === 'material') {
-    const autoMetrica = MATERIAL_METRICAS[val] || '';
+    const autoMetrica = getMetricaForMaterial(val);
     row.material = val;
     row.unidad = autoMetrica;
     const metricaDisplay = document.getElementById(`metricaDisplay-${index}`);
@@ -2053,5 +2205,9 @@ window.loadHistorialSolicitudes = loadHistorialSolicitudes;
 window.filterHistorialSolicitudes = filterHistorialSolicitudes;
 window.renderHistorialSolicitudes = renderHistorialSolicitudes;
 window.onResponsableChanged = onResponsableChanged;
+window.triggerCameraCapture = triggerCameraCapture;
+window.openCameraModal = openCameraModal;
+window.closeCameraModal = closeCameraModal;
+window.captureWebcamPhoto = captureWebcamPhoto;
 
 

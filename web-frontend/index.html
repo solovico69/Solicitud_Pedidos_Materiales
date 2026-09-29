@@ -548,6 +548,41 @@
         </button>
       </div>
     </div>
+  <!-- MODAL DE CAPTURA DE CÁMARA (PC / DESKTOP) -->
+  <div class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300" id="cameraModal" onclick="if(event.target === this) closeCameraModal()">
+    <div class="w-full max-w-md bg-surface-container-lowest dark:bg-[#1e293b] rounded-2xl p-5 shadow-2xl border border-slate-200 dark:border-slate-700 transform translate-y-8 transition-all duration-300 space-y-4" id="cameraModalContent">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-primary/10 dark:bg-amber-500/10 text-primary dark:text-amber-400 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">photo_camera</span>
+          </div>
+          <h3 class="font-headline-md text-primary dark:text-white font-bold text-sm sm:text-base">Tomar Fotografía con Cámara</h3>
+        </div>
+        <button onclick="closeCameraModal()" type="button" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Visor de Video en Vivo -->
+      <div class="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-slate-200 dark:border-slate-700">
+        <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+        <canvas id="webcamCanvas" class="hidden"></canvas>
+        <div id="cameraLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-2">
+          <span class="animate-spin h-6 w-6 border-2 border-amber-400 border-t-transparent rounded-full"></span>
+          <span class="text-xs font-semibold">Activando cámara...</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2.5 pt-1">
+        <button onclick="closeCameraModal()" type="button" class="flex-1 py-2.5 px-4 rounded-xl bg-surface-container dark:bg-slate-800 text-on-surface dark:text-slate-200 font-label-md font-semibold text-xs sm:text-sm">
+          Cancelar
+        </button>
+        <button onclick="captureWebcamPhoto()" type="button" id="btnSnapPhoto" class="flex-1 py-2.5 px-4 bg-primary dark:bg-amber-500 text-white dark:text-slate-950 font-label-md font-bold rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+          <span class="material-symbols-outlined text-[18px]">camera</span>
+          <span>Capturar Foto</span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- NOTIFICACIÓN TOAST FLOTANTE -->
