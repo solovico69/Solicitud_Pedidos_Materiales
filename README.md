@@ -1,6 +1,6 @@
 # GIMO • Control Solicitud de Pedidos & Gestión de Materiales en Obra
 
-> **v3.0.0** · **Estado: 🚀 Producción Activa (GIMO • Control Integral de Obra: Requisición, Entrada, Uso e Historial)** · **Industrial Precision — Victor Solorzano · 2026**
+> **v3.1.0** · **Estado: 🚀 Producción Activa (GIMO • Solución Dual de Fotos, Búsqueda Normalizada de Métrica y UX Móvil Táctil)** · **Industrial Precision — Victor Solorzano · 2026**
 
 ---
 
@@ -58,10 +58,16 @@ Diseñada específicamente para ingenieros residentes, directores de obra y pers
 
 #### Pestaña 1: 📝 Solicitud de Pedidos
 - **Formulario Inteligente y Flexible:** Permite registrar solicitudes de hasta 30 partidas simultáneas agrupadas en un mismo folio de control.
-- **Métrica Automática Blindada:** La unidad de medida (`METRICA`) se completa automáticamente según el material seleccionado a partir de los catálogos vinculados, protegida contra edición manual directa para respetar la fórmula `ARRAYFORMULA` de Google Sheets.
-- **Adjuntos Fotográficos de Muestras (Compras & Almacén):** Anexo de 0 a 3 fotografías por partida (acabados, cerámicas, griferías, pinturas) capturadas desde cámara o galería.
-- **Compresión en Cliente (HTML5 Canvas):** Redimensiona automáticamente las fotos a un máximo de 1280px con compresión JPEG (calidad 0.75), generando payloads ligeros de ~150-250 KB en Base64 para transmisión fluida.
-- **Catálogos Dinámicos con Alta Inline:** Registro instantáneo de nuevos profesionales, obras, sectores o materiales con su métrica (`➕ Nuevo…`) sin abandonar el formulario.
+- **Métrica Automática Blindada con Búsqueda Normalizada:** La unidad de medida (`METRICA`) se autocompleta inmediatamente según el material seleccionado mediante un algoritmo de búsqueda tolerante a mayúsculas/minúsculas, acentos, espacios múltiples y variantes de comillas tipográficas (`"` vs `”` vs `″`). Permanece bloqueada (`readonly disabled` con candado 🔒) para proteger la integridad de las fórmulas nativas de Google Sheets.
+- **Sistema Dual de Fotografías (Cámara y Galería Independientes):** Anexo de 0 a 3 muestras fotográficas por partida con acceso diferenciado por dispositivo:
+  - 📷 **Botón Cámara:**
+    - *En Móviles:* Dispara la cámara fotográfica nativa trasera del teléfono con sensor de alta resolución (`capture="environment"`).
+    - *En PC / Escritorio:* Abre un modal interactivo con visor de cámara web en vivo (`navigator.mediaDevices.getUserMedia`) con encuadre en pantalla y botón *"Capturar Foto"*.
+  - 🖼️ **Botón Galería / Archivo:**
+    - *En Móviles:* Abre directamente la galería y álbumes de fotos del dispositivo (sin forzar la cámara).
+    - *En PC:* Abre el explorador de archivos del sistema operativo para seleccionar imágenes almacenadas en disco.
+- **Compresión en Cliente (HTML5 Canvas):** Redimensiona automáticamente las fotos a un máximo de 1280px con compresión JPEG (calidad 0.75), generando payloads ligeros de ~150-250 KB en Base64 para transmisión instantánea y bajo consumo de datos móviles.
+- **Catálogos Dinámicos con Selectores Nativos:** Registro instantáneo de nuevos profesionales, obras, sectores o materiales con su métrica (`➕ Nuevo…`) sin abandonar el formulario. Estandarización de todos los desplegables (`<select>` con `appearance-none`) para desplegar ventanas modales táctiles nativas con radio-buttons en smartphones.
 - **Comprobante en PDF Automatizado:** Generación y descarga directa mediante `jsPDF` con Folio de control oficial, fecha, solicitante y desglose de partidas.
 
 #### Pestaña 2: 📥 Entrada de Materiales en Obra
