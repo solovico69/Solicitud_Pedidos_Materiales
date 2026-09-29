@@ -548,94 +548,147 @@ function renderRows() {
 // ============================================
 // GESTIÓN DE CÁMARA & FOTOGRAFÍAS (MÓVIL & PC)
 // ============================================
+// GESTIÓN DE MUESTRAS FOTOGRÁFICAS Y CÁMARA
+// ============================================
 
 let currentCameraRowIndex = null;
 let webcamMediaStream = null;
 
-function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-         (window.matchMedia && window.matchMedia("(max-width: 768px)").matches && 'ontouchstart' in window);
+/**
+ * Detecta si el dispositivo es estrictamente una plataforma móvil (Android/iOS)
+ * basándose en el User-Agent para evitar falsos positivos en laptops con pantalla táctil.
+ */
+function isMobilePlatform() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  return /android|iphone|ipad|ipod|windows phone/i.test(ua.toLowerCase());
 }
+const isMobileDevice = isMobilePlatform;
 
+/**
+ * Disparador unificado para el botón "Cámara".
+ * - En celulares: Invoca el sensor fotográfico nativo con capture="environment".
+ * - En computadoras/laptops: Despliega el visor modal en vivo mediante WebRTC.
+ */
 function triggerCameraCapture(index) {
   currentCameraRowIndex = index;
-  // En móviles: disparar el input nativo de cámara con capture="environment" (experiencia nativa con sensor completo)
-  if (isMobileDevice()) {
-    const input = document.getElementById(`camera-input-${index}`);
-    if (input) input.click();
+
+  if (isMobilePlatform()) {
+    const mobileInput = document.getElementById(`camera-input-${index}`);
+    if (mobileInput) {
+      mobileInput.click();
+      return;
+    }
+  }
+
+  // En PC / Laptop: desplegar modal web
+  openCameraModal(index);
+}
+const handleCameraClick = triggerCameraCapture;
+
+/**
+ * Abre el visor modal de cámara web en escritorio y reproduce el stream de video en vivo.
+ */
+async function openCameraModal(index) {
+  currentCameraRowIndex = index;
+  const modal = document.getElementById('cameraModal') || document.getElementById('camera-modal');
+  const video = document.getElementById('webcamVideo') || document.getElementById('camera-video-preview') || (modal ? modal.querySelector('video') : null);
+  const loading = document.getElementById('cameraLoading');
+
+  if (!modal || !video) {
+    console.error("[Cámara] No se encontró el modal o el elemento video en el DOM");
     return;
   }
 
-  // En PC/Laptop: abrir modal con visor de cámara web en vivo
-  openCameraModal(index);
-}
-
-async function openCameraModal(index) {
-  currentCameraRowIndex = index;
-  const modal = document.getElementById('cameraModal');
-  const content = document.getElementById('cameraModalContent');
-  const video = document.getElementById('webcamVideo');
-  const loading = document.getElementById('cameraLoading');
-  if (!modal || !content || !video) return;
-
-  modal.classList.remove('opacity-0', 'pointer-events-none');
-  modal.classList.add('opacity-100');
-  content.classList.remove('translate-y-8');
-  content.classList.add('translate-y-0');
+  // Forzar visualización frontal absoluta
+  modal.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+  modal.style.display = 'flex';
+  modal.style.zIndex = '99999';
   if (loading) loading.classList.remove('hidden');
 
   try {
+    if (webcamMediaStream) {
+      webcamMediaStream.getTracks().forEach(track => track.stop());
+      webcamMediaStream = null;
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Tu navegador o equipo no soporta captura de cámara directa.');
     }
-    webcamMediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
       audio: false
     });
-    video.srcObject = webcamMediaStream;
+
+    webcamMediaStream = stream;
+    video.srcObject = stream;
+    video.setAttribute('playsinline', '');
+    video.muted = true;
     await video.play();
     if (loading) loading.classList.add('hidden');
   } catch (err) {
+    console.error("[Cámara Desktop Error]", err);
     if (loading) loading.classList.add('hidden');
-    showToast(`❌ Error al acceder a la cámara: ${err.message}`);
+    showToast(`❌ Error al acceder a la cámara: ${err.message || err.name}`);
     closeCameraModal();
   }
 }
+const openDesktopCameraModal = openCameraModal;
 
+/**
+ * Cierra el modal de cámara web y libera/apaga todos los tracks de hardware.
+ */
 function closeCameraModal() {
-  const modal = document.getElementById('cameraModal');
-  const content = document.getElementById('cameraModalContent');
-  const video = document.getElementById('webcamVideo');
+  const modal = document.getElementById('cameraModal') || document.getElementById('camera-modal');
+  const video = document.getElementById('webcamVideo') || document.getElementById('camera-video-preview') || (modal ? modal.querySelector('video') : null);
+
   if (webcamMediaStream) {
     webcamMediaStream.getTracks().forEach(track => track.stop());
     webcamMediaStream = null;
   }
   if (video) video.srcObject = null;
   if (modal) {
-    modal.classList.add('opacity-0', 'pointer-events-none');
-    modal.classList.remove('opacity-100');
-  }
-  if (content) {
-    content.classList.add('translate-y-8');
-    content.classList.remove('translate-y-0');
+    modal.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+    modal.style.display = 'none';
   }
   currentCameraRowIndex = null;
 }
+const closeDesktopCameraModal = closeCameraModal;
 
+/**
+ * Captura un frame del video en vivo, lo redimensiona a un máximo de 1280px con compresión JPEG 0.75
+ * y lo incorpora al listado de fotos de la partida correspondiente.
+ */
 async function captureWebcamPhoto() {
   if (currentCameraRowIndex === null) return;
-  const video = document.getElementById('webcamVideo');
-  const canvas = document.getElementById('webcamCanvas');
-  if (!video || !canvas) return;
+  const video = document.getElementById('webcamVideo') || document.getElementById('camera-video-preview');
+  let canvas = document.getElementById('webcamCanvas');
+  if (!canvas) canvas = document.createElement('canvas');
+  if (!video) return;
 
   const w = video.videoWidth || 640;
   const h = video.videoHeight || 480;
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, w, h);
 
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  // Escalar proporcionalmente a un máximo de 1280px
+  const maxDim = 1280;
+  let targetW = w;
+  let targetH = h;
+  if (w > maxDim || h > maxDim) {
+    if (w > h) {
+      targetW = maxDim;
+      targetH = Math.round((h * maxDim) / w);
+    } else {
+      targetH = maxDim;
+      targetW = Math.round((w * maxDim) / h);
+    }
+  }
+
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, targetW, targetH);
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
   const row = currentRows[currentCameraRowIndex];
   if (row) {
     if (!Array.isArray(row.fotos)) row.fotos = [];
@@ -2206,8 +2259,12 @@ window.filterHistorialSolicitudes = filterHistorialSolicitudes;
 window.renderHistorialSolicitudes = renderHistorialSolicitudes;
 window.onResponsableChanged = onResponsableChanged;
 window.triggerCameraCapture = triggerCameraCapture;
+window.handleCameraClick = handleCameraClick;
 window.openCameraModal = openCameraModal;
+window.openDesktopCameraModal = openDesktopCameraModal;
 window.closeCameraModal = closeCameraModal;
+window.closeDesktopCameraModal = closeDesktopCameraModal;
 window.captureWebcamPhoto = captureWebcamPhoto;
+window.isMobilePlatform = isMobilePlatform;
 
 

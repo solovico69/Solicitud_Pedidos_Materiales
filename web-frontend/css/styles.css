@@ -199,3 +199,39 @@
 .dark .photo-thumb-remove {
   border-color: #0f172a;
 }
+
+/* ============================================================
+   MODAL DE CAPTURA DE CÁMARA WEB EN ESCRITORIO / LAPTOP
+   ============================================================ */
+#cameraModal,
+#camera-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(15, 23, 42, 0.85) !important;
+  z-index: 99999 !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+#cameraModal:not(.hidden),
+#camera-modal:not(.hidden) {
+  display: flex !important;
+}
+
+#webcamVideo,
+#camera-video-preview {
+  width: 100%;
+  max-width: 640px;
+  border-radius: 0.75rem;
+  background-color: #000;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
